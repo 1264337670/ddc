@@ -1,0 +1,805 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>心屿平台 - 治愈系进阶版</title>
+  <style>
+    :root {
+      --brand-orange: #FF8c42; --brand-pink: #FFC2A8; --cream: #FFFaf2;
+      --text-main: #5C4B41; --text-sub: #A38C80; --good: #6BCB77;
+      --card-md: 24px; --card-lg: 32px;
+      --glass: rgba(255, 255, 255, 0.65); --glass-border: rgba(255, 255, 255, 0.8);
+      --glass-shadow: 0 24px 64px rgba(255, 140, 66, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: 'PingFang SC', 'Comic Sans MS', sans-serif;
+      color: var(--text-main); background: #FFFaf2; overflow-x: hidden;
+      transition: background 0.8s ease, color 0.8s ease;
+    }
+    body.is-treehole {
+      background: linear-gradient(180deg, #1A1C29 0%, #2A3B32 100%);
+      color: #E2E8DA;
+    }
+    
+    .ambience { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .blob {
+      position: absolute; filter: blur(60px); border-radius: 50%; opacity: 0.6;
+      animation: float-blob 12s infinite alternate ease-in-out;
+    }
+    .blob-1 { background: #FFD2A8; width: 500px; height: 500px; top: -100px; right: -100px; }
+    .blob-2 { background: #FFB3A8; width: 400px; height: 400px; bottom: -50px; left: -50px; animation-delay: -3s; }
+    body.is-treehole .blob-1 { background: #3B5B4A; }
+    body.is-treehole .blob-2 { background: #1C2E24; }
+
+    @keyframes float-blob {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(40px, -40px) scale(1.1); }
+    }
+
+    #app { position: relative; z-index: 1; max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+
+    .top-nav { display: flex; gap: 16px; margin-bottom: 30px; }
+    .nav-btn {
+      border: none; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(8px);
+      padding: 12px 24px; border-radius: 999px; font-weight: bold; cursor: pointer;
+      color: var(--text-sub); transition: all 0.3s; font-size: 16px; outline: none;
+    }
+    .nav-btn.active {
+      background: linear-gradient(135deg, var(--brand-orange), #FF6b6b);
+      color: white; transform: scale(1.05); box-shadow: 0 8px 24px rgba(255, 140, 66, 0.4);
+    }
+    body.is-treehole .nav-btn { background: rgba(255, 255, 255, 0.1); color: #A8B8A0; }
+    body.is-treehole .nav-btn.active { background: #6BCB77; color: #fff; box-shadow: 0 8px 24px rgba(107, 203, 119, 0.4); }
+
+    .screen {
+      background: var(--glass); border: 1px solid var(--glass-border);
+      backdrop-filter: blur(30px); border-radius: 40px; padding: 50px; 
+      box-shadow: var(--glass-shadow), inset 0 0 0 1px rgba(255,255,255,0.5); 
+      min-height: 640px; position: relative; overflow: hidden;
+      animation: popIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    body.is-treehole .screen {
+      background: rgba(20, 25, 22, 0.5); border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes popIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+    .hollow-deco {
+      position: absolute; inset: 0; pointer-events: none; opacity: 0.8; z-index: -1;
+      background: radial-gradient(circle at 80% 20%, rgba(255,140,66,0.1) 0%, transparent 40%);
+      -webkit-mask: radial-gradient(circle at 10% 90%, transparent 100px, black 105px);
+    }
+
+    /* Forms and Common */
+    .input-box {
+      width: 100%; border: 2px solid var(--glass-border); border-radius: 12px; padding: 16px;
+      font-size: 16px; background: rgba(255,255,255,0.5); outline:none; transition: 0.3s;
+      margin-bottom: 20px; color: var(--text-main);
+    }
+    .input-box:focus { border-color: var(--brand-orange); background: #fff; box-shadow: 0 0 0 4px rgba(255,140,66,0.1); }
+    .primary-btn {
+      width: 100%; padding: 18px; background: linear-gradient(135deg, var(--brand-orange), #FF6b6b);
+      border: none; border-radius: 12px; color: white; font-size: 18px; font-weight: bold;
+      cursor: pointer; box-shadow: 0 8px 24px rgba(255, 140, 66, 0.3); transition: 0.3s;
+    }
+    .primary-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(255, 140, 66, 0.4); }
+    .form-container { max-width: 400px; margin: 60px auto; background: rgba(255,255,255,0.7); padding: 40px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.05); }
+
+    /* Game Navigation & Games */
+    .game-main-block {
+      flex: 1; border-radius: 24px; position: relative; overflow: hidden;
+      box-shadow: inset 0 0 40px rgba(255,255,255,0.4);
+      background: linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2));
+      backdrop-filter: blur(10px); display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 30px; border: 1px solid rgba(255,255,255,0.5); min-height: 480px;
+    }
+    .q-cloud { position: absolute; background: white; border-radius: 999px; opacity: 0.7; }
+    .qc1 { width: 140px; height: 50px; top: 30px; left: 5%; animation: drift 10s linear infinite alternate; }
+    .qc2 { width: 100px; height: 40px; top: 70px; right: 10%; animation: drift 8s linear infinite alternate-reverse; }
+    .qc3 { width: 60px; height: 20px; bottom: 30px; left: 15%; animation: drift 6s linear infinite alternate; }
+    @keyframes drift { from { transform: translateX(-30px); } to { transform: translateX(30px); } }
+
+    .breathing-character {
+      width: 160px; height: 160px; background: #6BCB77; border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+      margin: 40px 0; display: flex; align-items: center; justify-content: center; position: relative;
+      box-shadow: inset -12px -12px 24px rgba(0,0,0,0.1), 0 24px 48px rgba(107, 203, 119, 0.4);
+      transition: all 4s ease-in-out;
+    }
+    .breathing-character .eyes { display: flex; gap: 26px; transition: all 0.3s; position: absolute; top: 45px; }
+    .eye { width: 14px; height: 14px; background: #2E5C31; border-radius: 50%; }
+    .mouth { position: absolute; bottom: 45px; width: 18px; height: 10px; border-bottom: 4px solid #2E5C31; border-radius: 50%; transition: all 4s; }
+    .breathe-inhale { transform: scale(1.6); background: #81D48A; }
+    .breathe-inhale .mouth { width: 20px; height: 20px; border: 4px solid #2E5C31; border-radius: 50%; bottom: 35px; background: rgba(0,0,0,0.1); }
+    .breathe-exhale { transform: scale(0.9); background: #6BCB77; }
+
+    .game-btn { padding: 12px 30px; background: #fff; color: #6BCB77; border: none; border-radius: 99px; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.1); transition: 0.2s;}
+    .game-btn:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,0.15); }
+    
+    .snake-board { background: rgba(0,0,0,0.03); border: 2px solid rgba(255,255,255,1); border-radius: 16px; margin: 0 auto;}
+    .color-svg path { cursor: pointer; transition: fill 0.3s, opacity 0.2s; stroke: #3B5B4A; stroke-width: 2px; }
+    .color-svg path:hover { opacity: 0.7; }
+    .color-swatch { width: 36px; height: 36px; border-radius: 50%; cursor: pointer; border: 3px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: 0.2s; }
+    .color-swatch.active { transform: scale(1.2); border: 3px solid #555; }
+
+    /* Tree Hole */
+    .glow-tree { position: relative; width: 340px; height: 400px; margin-top: 40px; }
+    .trunk {
+      position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 90px; height: 260px;
+      background: #4A3327; border-radius: 12px 12px 0 0;
+      background-image: 
+        repeating-linear-gradient(85deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 2px, transparent 2px, transparent 15px),
+        linear-gradient(90deg, #2D1A11, #5C4336 40%, #4A3327 80%, #1a0f0a);
+      box-shadow: inset 10px 0 20px rgba(0,0,0,0.5), inset -10px 0 20px rgba(0,0,0,0.3);
+    }
+    .trunk::after {
+      content: ''; position: absolute; top: 40px; left: 20px; width: 20px; height: 35px; background: #2D1A11; border-radius: 50%; box-shadow: inset 2px 5px 10px rgba(0,0,0,0.8);
+    }
+    .trunk::before {
+      content: ''; position: absolute; top: 120px; right: 15px; width: 15px; height: 25px; background: #2D1A11; border-radius: 50%; box-shadow: inset -2px -2px 10px rgba(0,0,0,0.8);
+    }
+    .can-container { position: absolute; bottom: 160px; left: 50%; transform: translateX(-50%); width: 520px; height: 460px; pointer-events: none; }
+    .canopy {
+      width: 100%; height: 100%; background: radial-gradient(circle, #57C783, #2A7948);
+      border-radius: 55% 45% 50% 50% / 60% 60% 40% 40%; filter: drop-shadow(0 0 30px #85DBA6); animation: tree-breathe 6s infinite alternate; position: relative; pointer-events: auto;
+    }
+    @keyframes tree-breathe { from { transform: scale(1) translateY(0); filter: drop-shadow(0 0 20px #85DBA6); } to { transform: scale(1.02) translateY(-10px); filter: drop-shadow(0 0 50px #85DBA6); } }
+    .envelope {
+      position: absolute; width: 44px; height: 34px; background: #fff; border-radius: 6px; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.5); transition: 0.2s;
+    }
+    .envelope::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 50%; background: #F0eaea; clip-path: polygon(0 0, 50% 100%, 100% 0); border-radius: 6px 6px 0 0; }
+    .envelope::after { content: "❤"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -10%); font-size: 14px; color: #ff6b6b; opacity: 0; transition: 0.2s; }
+    .envelope:hover { transform: scale(1.3) rotate(5deg); z-index: 10; }
+    .envelope:hover::after { opacity: 1; }
+    .tree-env-1 { top: 120px; left: 100px; animation: float-env 3s infinite alternate; transform: rotate(-5deg); }
+    .tree-env-2 { top: 180px; right: 120px; animation: float-env 3.5s infinite alternate; transform: rotate(10deg); }
+    .tree-env-3 { top: 280px; left: 160px; animation: float-env 4s infinite alternate; transform: rotate(-15deg); }
+    @keyframes float-env { from { transform: translateY(0) rotate(inherit); } to { transform: translateY(-10px) rotate(inherit); } }
+
+    /* Modals */
+    .msg-modal {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #FFFaf2; padding: 40px; border-radius: 24px; color: #5C4B41;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.6); width: 380px; text-align: center; z-index: 1000;
+    }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999; backdrop-filter: blur(4px); }
+    .msg-modal textarea { width: 100%; height: 140px; border: 2px dashed #FFC2A8; border-radius: 12px; padding: 16px; font-family: inherit; resize: none; outline: none; margin: 20px 0; font-size: 16px; }
+
+    /* Chat Bot */
+    .ai-fab { position: fixed; right: 50px; bottom: 50px; z-index: 9999; }
+    .ai-bot {
+      width: 80px; height: 80px; background: linear-gradient(135deg, #FF9A5A, #FF6B6B); border-radius: 45% 55% 40% 60%; box-shadow: 0 16px 30px rgba(255, 107, 107, 0.4);
+      display: flex; align-items: center; justify-content: center; position: relative; animation: hover-bot 3s infinite alternate, bot-glow 4s infinite alternate; transition: 0.3s; cursor: pointer;
+    }
+    .ai-bot:hover { transform: scale(1.15) rotate(-5deg); }
+    .ai-bot .eyes { display: flex; gap: 14px; position: absolute; top: 30px; }
+    .ai-bot .eye { width: 10px; height: 10px; background: #fff; border-radius: 50%; }
+    .ai-bot .blush { position: absolute; top: 42px; width: 12px; height: 6px; background: rgba(255,0,0,0.3); border-radius: 50%; }
+    .ai-bot .blush.l { left: 14px; } .ai-bot .blush.r { right: 14px; }
+    @keyframes hover-bot { from { transform: translateY(0); border-radius: 45% 55% 40% 60%; } to { transform: translateY(-20px); border-radius: 55% 45% 60% 40%; } }
+    @keyframes bot-glow { from { box-shadow: 0 0 0 transparent; } to { box-shadow: 0 0 20px rgba(255, 154, 90, 0.6); } }
+
+    .chat-popover {
+      position: absolute; bottom: 100px; right: 10px; width: 380px; background: rgba(255,255,255,0.95); border-radius: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); padding: 24px;
+      backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.6); transform-origin: bottom right; animation: popIn 0.3s;
+    }
+    .chat-body { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .c-msg { padding: 12px 16px; border-radius: 18px; font-size: 15px; line-height: 1.5; max-width: 85%; }
+    .c-msg.bot { background: #FFF1E8; color: #D86326; border-radius: 18px 18px 18px 4px; align-self: flex-start; }
+    .c-msg.me { background: #F0F0F0; color: #444; border-radius: 18px 18px 4px 18px; align-self: flex-end; }
+    .chat-input { display: flex; gap: 10px; }
+    .chat-input input { flex: 1; border: 2px solid #FFC2A8; border-radius: 99px; padding: 12px 20px; outline: none; }
+    .chat-input button { background: linear-gradient(135deg, #FF9A5A, #FF6B6b); color: #fff; border: none; border-radius: 99px; padding: 0 24px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="ambience">
+    <div class="blob blob-1"></div><div class="blob blob-2"></div>
+  </div>
+
+  <div id="app">
+    <div class="top-nav">
+      <button v-for="p in pages" :key="p.key" :class="['nav-btn', { active: current === p.key }]" @click="switchPage(p.key)">
+        {{ p.name }}
+      </button>
+    </div>
+
+    <!-- AI Bot Floating -->
+    <div class="ai-fab">
+      <div class="ai-bot" @click="toggleChat">
+        <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+        <div class="blush l"></div><div class="blush r"></div>
+      </div>
+      <div v-if="showChat" class="chat-popover" @click.stop>
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: #6BCB77;"></div>
+          <h3 style="margin:0; color: #FF8c42; font-size: 20px;">小屿助理</h3>
+        </div>
+        <div class="chat-body" id="chat-body">
+          <div v-for="m in chatMsg" :class="['c-msg', m.type]">{{ m.text }}</div>
+        </div>
+        <div class="chat-input" @keydown.enter.prevent="sendChat">
+          <input v-model="cInput" placeholder="呼唤小屿..." />
+          <button type="button" @click="sendChat">发送</button>
+        </div>
+      </div>
+    </div>
+
+    
+    <!-- Login/Register Modal -->
+    <div class="modal-overlay" v-if="showLoginModal" @click.self="showLoginModal = false" style="z-index: 10001; position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center;">
+      <div class="msg-modal" style="width: 360px; padding: 30px; background: white; border-radius: 24px; box-shadow: var(--glass-shadow);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 24px;">
+           <span style="font-size:24px; color:var(--brand-orange); font-weight:bold;">{{ isRegister ? '创建心灵账号' : '登录你的避风港' }}</span>
+           <span style="cursor:pointer; font-size:24px; color:#aaa; line-height: 1;" @click="showLoginModal = false">×</span>
+        </div>
+        <form @submit.prevent="handleLoginSubmit">
+          <input type="text" class="input-box" placeholder="专属昵称" v-model="loginForm.username" required />
+          <input type="password" class="input-box" placeholder="安全密码" v-model="loginForm.password" required />
+          <input type="password" class="input-box" placeholder="确认安全密码" v-model="loginForm.confirm" required v-if="isRegister" />
+          
+          <button type="submit" class="primary-btn" style="margin-top: 10px; width: 100%;">
+            {{ isRegister ? '注册并加入' : '开启疗愈之旅' }}
+          </button>
+        </form>
+        <div style="text-align:center; margin-top:20px; font-size:14px; color:var(--text-sub);">
+           {{ isRegister ? '已有账号？' : '还没有账号？' }} 
+           <span style="color:var(--brand-orange); cursor:pointer; font-weight:bold;" @click="isRegister = !isRegister">
+              {{ isRegister ? '直接登录' : '立即注册' }}
+           </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen">
+      <div class="hollow-deco" v-if="current !== 'treehole'"></div>
+
+      <!-- Knowledge Page -->
+      <template v-if="current === 'knowledge'">
+        <div style="padding-top: 20px;">
+          <h1 style="color: var(--brand-orange); font-size: 34px; margin-bottom: 8px;">心理百科科普</h1>
+          <p style="color: var(--text-sub); margin-bottom: 30px;">了解常见的心理状态，掌握自我疗愈的方法。知识也是一种力量。</p>
+          
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <!-- Card 1 -->
+            <div style="background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); border-radius: 24px; padding: 24px; box-shadow: var(--glass-shadow);">
+               <div style="font-size:32px; margin-bottom: 12px;">🌧️</div>
+               <h3 style="color:#5C4B41; font-size:20px; margin:0 0 10px;">抑郁情绪 (Depression)</h3>
+               <p style="color:var(--text-sub); font-size:14px; line-height:1.6; margin-bottom:16px;"><strong>简介：</strong>持续的悲伤感、对日常活动失去兴趣。它不仅仅是“心情不好”，而是一种常见的心理健康状况。</p>
+               <div style="background: #FFF1E8; padding: 12px 16px; border-radius: 12px;">
+                 <strong style="color:var(--brand-orange); font-size:14px;">缓解方式：</strong>
+                 <ul style="color:#5C4B41; font-size:13px; margin: 4px 0 0; padding-left: 20px;">
+                   <li>保持规律的作息时间，即使不想动也尝试简单的散步。</li>
+                   <li>不要封闭自己，尝试向信任的朋友或“安全树洞”倾诉。</li>
+                   <li>及时寻求专业心理咨询师的帮助。</li>
+                 </ul>
+               </div>
+            </div>
+            
+            <!-- Card 2 -->
+            <div style="background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); border-radius: 24px; padding: 24px; box-shadow: var(--glass-shadow);">
+               <div style="font-size:32px; margin-bottom: 12px;">🌪️</div>
+               <h3 style="color:#5C4B41; font-size:20px; margin:0 0 10px;">焦虑症状 (Anxiety)</h3>
+               <p style="color:var(--text-sub); font-size:14px; line-height:1.6; margin-bottom:16px;"><strong>简介：</strong>对未来或某些事件感到过度的担忧和紧张，常伴有躯体反应。</p>
+               <div style="background: #E8F5E9; padding: 12px 16px; border-radius: 12px;">
+                 <strong style="color:#6BCB77; font-size:14px;">缓解方式：</strong>
+                 <ul style="color:#5C4B41; font-size:13px; margin: 4px 0 0; padding-left: 20px;">
+                   <li>尝试本平台的【呼吸泡泡】进行深呼吸放松。</li>
+                   <li>写下焦虑事物，区分“可控”与“不可控”。</li>
+                   <li>减少咖啡因摄入。</li>
+                 </ul>
+               </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div style="background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); border-radius: 24px; padding: 24px; box-shadow: var(--glass-shadow);">
+               <div style="font-size:32px; margin-bottom: 12px;">🦉</div>
+               <h3 style="color:#5C4B41; font-size:20px; margin:0 0 10px;">睡眠障碍与失眠</h3>
+               <p style="color:var(--text-sub); font-size:14px; line-height:1.6; margin-bottom:16px;"><strong>简介：</strong>难以入睡或早醒。长期失眠会显著影响白天精力。</p>
+               <div style="background: #E8EAF6; padding: 12px 16px; border-radius: 12px;">
+                 <strong style="color:#5C6BC0; font-size:14px;">缓解方式：</strong>
+                 <ul style="color:#5C4B41; font-size:13px; margin: 4px 0 0; padding-left: 20px;">
+                   <li>睡前 1 小时远离蓝光屏幕（手机/电脑）。</li>
+                   <li>只在床上睡觉，不要工作或玩游戏。</li>
+                   <li>睡前听白噪音或身体拉伸。</li>
+                 </ul>
+               </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div style="background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); border-radius: 24px; padding: 24px; box-shadow: var(--glass-shadow);">
+               <div style="font-size:32px; margin-bottom: 12px;">🎭</div>
+               <h3 style="color:#5C4B41; font-size:20px; margin:0 0 10px;">心理内耗与拖延症</h3>
+               <p style="color:var(--text-sub); font-size:14px; line-height:1.6; margin-bottom:16px;"><strong>简介：</strong>对自身或他人有不切实际的极高标准，常害怕失败导致内耗。</p>
+               <div style="background: #FFF9C4; padding: 12px 16px; border-radius: 12px;">
+                 <strong style="color:#FBC02D; font-size:14px;">缓解方式：</strong>
+                 <ul style="color:#5C4B41; font-size:13px; margin: 4px 0 0; padding-left: 20px;">
+                   <li>接受“足够好”而不是“完美”，允许自己犯错。</li>
+                   <li>大任务拆分成小目标，注重过程。</li>
+                   <li>涂鸦或做不带目的感的手工。</li>
+                 </ul>
+               </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Home Page -->
+      <template v-if="current === 'home'">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 40px; padding-left:20px;">
+          <div style="flex:1;">
+            <h1 style="font-size: 56px; color: var(--brand-orange); margin-bottom: 24px; line-height: 1.2;">
+              让心灵<br/>在这里深呼吸
+            </h1>
+            <p style="color: var(--text-sub); font-size: 20px; margin-bottom: 40px; max-width: 400px; line-height:1.6;">
+              我们倾听你的每一句低语。不论快乐还是悲伤，都能在小岛得到最温柔的拥抱。
+            </p>
+            <div style="display: flex; gap: 20px;">
+              <button class="primary-btn" style="width: auto; padding: 16px 40px;" @click="switchPage('reserve')">联系心理导师</button>
+              <button class="nav-btn" style="background:#fff; border:2px solid var(--brand-orange); color:var(--brand-orange);" @click="switchPage('game')">放松一下</button>
+            </div>
+            <div style="margin-top:20px;">
+              <button class="nav-btn" style="background:var(--brand-pink); color:#5C4B41; border:none; padding:12px 30px; border-radius:30px; cursor:pointer; display:flex; align-items:center; gap:8px;" @click="showImportModal = true">
+                <span style="font-size:20px;">⚡</span> 一键接入心理分析
+              </button>
+            </div>
+          </div>
+          <div style="width: 400px; height: 400px; background: linear-gradient(135deg, #FFC2A8, #E8F5E9); border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; box-shadow: inset 0 0 50px rgba(255,255,255,0.8), 0 20px 50px rgba(0,0,0,0.05); animation: hover-bot 6s infinite alternate;"></div>
+        </div>
+      </template>
+
+      <!-- Reserve Page -->
+      <template v-if="current === 'reserve'">
+        <div class="form-container">
+          <h2 style="font-size:32px; color: var(--brand-orange); text-align:center; margin-bottom: 8px;">预约咨询</h2>
+          <p style="text-align:center; color:var(--text-sub); margin-bottom: 30px;">专业疏导 陪伴成长</p>
+          <form @submit.prevent>
+            <input type="text" class="input-box" placeholder="您的称呼" required />
+            <select class="input-box" required><option value="" disabled selected>选择你想聊的方面</option><option>学业压力</option><option>人际关系</option><option>情绪管理</option></select>
+            <input type="date" class="input-box" required />
+            <button type="submit" class="primary-btn" @click="bHint = '预约请求已发送，我们会尽快与您联系！'; subGame = 'breathing';">提交预约</button>
+          </form>
+        </div>
+      </template>
+
+      <!-- Games Page -->
+      <template v-if="current === 'game'">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px;">
+            <div>
+              <h1 style="color: var(--brand-orange); font-size: 34px; letter-spacing: 1px; margin-bottom: 8px;">温馨解压小游戏</h1>
+              <p style="color: var(--text-sub); margin-bottom: 0px; font-size: 16px;">通过简单的互动，找回内心的纯净与平静。</p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" :class="['nav-btn', { active: subGame === 'breathing' }]" @click="subGame = 'breathing'" style="padding: 8px 16px; font-size: 14px;">呼吸泡泡</button>
+                <button type="button" :class="['nav-btn', { active: subGame === 'snake' }]" @click="initSnake" style="padding: 8px 16px; font-size: 14px;">贪吃蛇</button>
+                <button type="button" :class="['nav-btn', { active: subGame === 'coloring' }]" @click="subGame = 'coloring'" style="padding: 8px 16px; font-size: 14px;">填色盘</button>
+                <button type="button" :class="['nav-btn', { active: subGame === 'flappy' }]" @click="initFlappy" style="padding: 8px 16px; font-size: 14px;">小鸟过柱</button>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 20px;">
+          <!-- Main Game Block -->
+          <div class="game-main-block">
+            
+            <!-- Breathing -->
+            <div v-show="subGame === 'breathing'" style="text-align:center; width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+              <div class="q-cloud qc1"></div><div class="q-cloud qc2"></div><div class="q-cloud qc3"></div>
+              <h2 style="margin: 0; z-index: 1; font-size: 28px; color: #3B5B4A;">呼吸泡泡房间</h2>
+              <p style="font-size: 16px; opacity: 0.9; z-index: 1; margin-top: 8px; height: 24px;">{{ bHint }}</p>
+              <div :class="['breathing-character', bState]" style="margin: 30px auto;">
+                <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+                <div class="mouth"></div>
+              </div>
+              <div style="z-index: 2; height: 50px; margin-top: 20px;">
+                <button type="button" class="game-btn" @click="startBreathing" v-if="bState === 'idle'" style="background:var(--brand-orange);color:#fff;">同我一起呼吸</button>
+                <button type="button" class="game-btn" style="background: rgba(255,255,255,0.8); color: #2E5C31;" @click="stopBreathing" v-else>结束深呼吸</button>
+              </div>
+            </div>
+
+            
+            <!-- Flappy Bird -->
+            <div v-show="subGame === 'flappy'" style="text-align:center; width:100%;">
+              <h2 style="margin: 0 0 10px; font-size: 24px; color: #FF8c42;">小鸟过柱</h2>
+              <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 20px;">点击画面跳跃，跨越每一个障碍！&nbsp;&nbsp;&nbsp;目前得分: {{ flappyScore }}</p>
+              <canvas id="flappyCanvas" width="400" height="300" style="background: linear-gradient(#70c5ce, #def2f4); border:4px solid #FFF; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.1); cursor:pointer;" @mousedown="flapBird" @touchstart.prevent="flapBird"></canvas>
+            </div>
+
+            <!-- Snake -->
+            <div v-show="subGame === 'snake'" style="text-align:center; width:100%;">
+              <h2 style="margin: 0 0 10px; font-size: 24px; color: #FF8c42;">暖心贪吃蛇</h2>
+              <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 20px;">使用键盘方向键控制，吃到星星带来好心情 ⭐ 得分: {{ snakeScore }}</p>
+              <canvas id="snakeCanvas" width="400" height="300" class="snake-board"></canvas>
+              <div style="margin-top: 20px;">
+                <button type="button" class="game-btn" @click="startSnake" v-if="!snakePlaying">开始游玩</button>
+                <button type="button" class="game-btn" @click="stopSnake" v-else>结束游玩</button>
+              </div>
+            </div>
+
+            <!-- Coloring -->
+            <div v-show="subGame === 'coloring'" style="text-align:center; width:100%; display:flex; flex-direction:column; align-items:center;">
+              <h2 style="margin: 0 0 10px; font-size: 24px; color: #FF9A5A;">色彩治愈馆</h2>
+              <p style="font-size: 14px; color: var(--text-sub); margin-bottom: 10px;">选择下方颜色，为多肉植物注入温暖的色彩</p>
+              
+              <svg class="color-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:240px; height:240px;">
+                <!-- Pot -->
+                <path d="M60 140 L80 190 L120 190 L140 140 Z" fill="#FFFaf2" @click="fillColor"/>
+                <path d="M50 120 L150 120 L150 140 L50 140 Z" fill="#FFC2A8" @click="fillColor"/>
+                <!-- Leaves -->
+                <path d="M100 120 C70 90, 40 40, 100 20 C120 60, 130 90, 100 120 Z" fill="#F4F9F4" @click="fillColor"/>
+                <path d="M100 120 C40 100, 20 60, 50 40 C80 60, 95 90, 100 120 Z" fill="#F4F9F4" @click="fillColor"/>
+                <path d="M100 120 C160 100, 180 60, 150 40 C120 60, 105 90, 100 120 Z" fill="#E8F5E9" @click="fillColor"/>
+                <path d="M100 120 C10 130, 0 80, 30 70 C60 90, 80 100, 100 120 Z" fill="#F4F9F4" @click="fillColor"/>
+                <path d="M100 120 C190 130, 200 80, 170 70 C140 90, 120 100, 100 120 Z" fill="#E8F5E9" @click="fillColor"/>
+                <!-- Front Petal -->
+                <path d="M100 120 C80 110, 70 80, 100 70 C130 80, 120 110, 100 120 Z" fill="#C8E6C9" @click="fillColor"/>
+              </svg>
+              
+              <div class="palette">
+                <div v-for="c in colors" :key="c" :class="['color-swatch', {active: currentColor === c}]" :style="{background: c}" @click="currentColor = c"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right Sidebar Entrances -->
+          <div style="width: 280px; display: flex; flex-direction: column; gap: 16px;">
+             <div @click="initSnake" :style="{ transform: subGame === 'snake' ? 'scale(1.05)' : 'scale(1)', border: subGame === 'snake' ? '2px solid #FFD93D' : '2px solid transparent' }" style="background: rgba(255,255,255,0.7); border-radius: 20px; padding: 20px; display: flex; align-items: center; gap: 16px; cursor: pointer; transition: 0.2s;">
+               <div style="width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(135deg, #FFE885, #FFD93D); display: flex; align-items: center; justify-content: center; font-size: 24px;">🐍</div>
+               <div><h3 style="margin: 0 0 4px; font-size: 16px;">暖心贪吃蛇</h3><p style="margin: 0; font-size: 13px; color: var(--text-sub);">经典专注</p></div>
+             </div>
+             
+             <div @click="subGame = 'coloring'" :style="{ transform: subGame === 'coloring' ? 'scale(1.05)' : 'scale(1)', border: subGame === 'coloring' ? '2px solid #FF9A5A' : '2px solid transparent' }" style="background: rgba(255,255,255,0.7); border-radius: 20px; padding: 20px; display: flex; align-items: center; gap: 16px; cursor: pointer; transition: 0.2s;">
+               <div style="width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(135deg, #FFB885, #FF9A5A); display: flex; align-items: center; justify-content: center; font-size: 24px;">🎨</div>
+               <div><h3 style="margin: 0 0 4px; font-size: 16px;">色彩治愈馆</h3><p style="margin: 0; font-size: 13px; color: var(--text-sub);">斑斓解压</p></div>
+             </div>
+
+             <div style="flex: 1; background: rgba(255,255,255,0.4); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                 <div style="font-size: 32px; margin-bottom: 8px;">✨</div>
+                 <h3 style="margin: 0 0 4px; font-size: 14px; color: #555;">更多研发中</h3>
+                 <p style="margin: 0; font-size: 12px; color: var(--text-sub);">期待...</p>
+             </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Tree Hole Page -->
+      <template v-if="current === 'treehole'">
+        <div style="text-align: center; position: relative; z-index: 2;">
+          <h1 style="color: #85DBA6; font-size: 40px; margin-bottom: 12px;">发光的秘密树洞</h1>
+          <p style="color: #A8B8A0; font-size: 18px;">点击树上摇曳的信封，或在夜色中埋下你的心事</p>
+        </div>
+        <div class="tree-scene">
+          <div class="glow-tree">
+            <div class="trunk"></div>
+            <div class="can-container">
+              <div class="canopy">
+                <div class="envelope tree-env-1" @click="readEnv('也许今天很糟糕，但明天的朝阳依然为你升起！')"></div>
+                <div class="envelope tree-env-2" @click="readEnv('别给自己太大压力，就算是宇宙中的尘埃，也有自己的轨迹。')"></div>
+                <div class="envelope tree-env-3" @click="readEnv('深呼吸，你比你想象的还要坚强，慢慢来，一切都会好的。')"></div>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="primary-btn" style="position: absolute; bottom: 30px; width: 220px; background: #6BCB77; box-shadow: 0 0 20px rgba(107, 203, 119, 0.4);" @click="isWriting = true">投递我的心事信封</button>
+        </div>
+      </template>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" v-if="activeEnv || isWriting" @click="closeModal"></div>
+    <div class="msg-modal" v-if="activeEnv">
+      <h3 style="color:#FF9A5A;">来自树洞的信</h3>
+      <p style="font-size:16px; line-height:1.8;">{{ envMsg }}</p>
+      <button type="button" class="primary-btn" @click="closeModal" style="margin-top:20px;">收到温暖</button>
+    </div>
+    <div class="msg-modal" v-if="isWriting">
+      <h3 style="color:#6BCB77;">写下你的心事</h3>
+      <textarea placeholder="在这里倾诉你的烦恼吧... 写完后它们会被永远封存在树洞里。"></textarea>
+      <button type="button" class="primary-btn" @click="closeModal" style="background:#6BCB77;">投递信封</button>
+    </div>
+
+  </div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script>
+    const { createApp, ref, onMounted, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        const pages = [
+          { key: 'home', name: '心灵栖息' },
+          { key: 'knowledge', name: '心理百科' },
+          { key: 'reserve', name: '联系导师' },
+          { key: 'game', name: '放松一下' },
+          { key: 'treehole', name: '安全树洞' }
+        ];
+        const current = ref('home');
+
+        const showLoginModal = ref(false);
+        const isRegister = ref(false);
+        const isLoggedIn = ref(false);
+        const currentUser = ref('');
+        const loginForm = ref({ username: '', password: '', confirm: '' });
+
+        const toggleLoginModal = () => {
+             if(isLoggedIn.value) {
+                if(confirm('要退出登录吗？')) {
+                   isLoggedIn.value = false;
+                   currentUser.value = '';
+                }
+             } else {
+                showLoginModal.value = true;
+             }
+        };
+
+        const handleLoginSubmit = () => {
+             if (!loginForm.value.username || !loginForm.value.password) return;
+             if (isRegister.value && loginForm.value.password !== loginForm.value.confirm) {
+                 alert('两次输入的密码不一致！');
+                 return;
+             }
+             isLoggedIn.value = true;
+             currentUser.value = loginForm.value.username;
+             showLoginModal.value = false;
+             loginForm.value = { username: '', password: '', confirm: '' };
+        };
+
+
+        const switchPage = (key) => {
+          current.value = key;
+          if (key === 'treehole') document.body.classList.add('is-treehole');   
+          else document.body.classList.remove('is-treehole');
+        };
+
+        const showChat = ref(false);
+        const cInput = ref('');
+        const chatMsg = ref([
+          { type: 'bot', text: '呼呼~ 终于见到你啦！我是悬浮在这里的小屿助理，有什么心事都可以跟我说哦！' }
+        ]);
+        const toggleChat = () => { showChat.value = !showChat.value; };
+        const sendChat = () => {
+          if(!cInput.value.trim()) return;
+          chatMsg.value.push({ type: 'me', text: cInput.value });
+          const isSad = cInput.value.includes('难过') || cInput.value.includes('累') || cInput.value.includes('压力');
+          let reply = isSad ? '给你一个大大的软绵绵拥抱！不要勉强自己，慢慢来就好啦~' : '(晃动身体) 收到！我正在用心地倾听，会一直在这里陪着你！';
+          cInput.value = '';
+          nextTick(() => { document.getElementById('chat-body').scrollTop = 9999; });
+          setTimeout(() => {
+            chatMsg.value.push({ type: 'bot', text: reply });
+            nextTick(() => { document.getElementById('chat-body').scrollTop = 9999; });
+          }, 800);
+        };
+
+        const bState = ref('idle');
+        const bHint = ref('点击下方按钮，深呼吸放松身心。');
+        let bLoop = null;
+        const startBreathing = () => {
+          bHint.value = '准备... 慢慢吸气...';
+          bState.value = 'breathe-inhale';
+          bLoop = setInterval(() => {
+            if(bState.value === 'breathe-inhale') {
+              bState.value = 'breathe-exhale'; bHint.value = '缓缓呼气... 放松...';
+            } else {
+              bState.value = 'breathe-inhale'; bHint.value = '慢慢吸气... 内心平静...';
+            }
+          }, 4000);
+        };
+        const stopBreathing = () => { clearInterval(bLoop); bState.value = 'idle'; bHint.value = '已停止放松。'; };
+
+        const subGame = ref('breathing');
+
+        // New Logic
+        const loginType = ref('url');
+        const showImportModal = ref(false);
+        const importStep = ref(0);
+        
+        const closeImportModal = () => {
+           showImportModal.value = false;
+           setTimeout(() => importStep.value = 0, 300);
+        };
+        const startImport = () => {
+           importStep.value = 1;
+           setTimeout(() => {
+              importStep.value = 2;
+           }, 2500);
+        };
+
+        const flappyScore = ref(0);
+        let flappyLoop = null;
+        let flappyCtx = null;
+        const flappyState = { birdY: 150, velocity: 0, pipes: [], frame: 0, playing: false };
+
+        const initFlappy = () => {
+            subGame.value = 'flappy';
+            nextTick(() => {
+                const cvs = document.getElementById('flappyCanvas');
+                if (cvs) flappyCtx = cvs.getContext('2d');
+                flappyState.playing = false; // require first click
+                
+                // Draw initial standing state
+                flappyCtx.fillStyle = '#70c5ce';
+                flappyCtx.fillRect(0,0,400,300);
+                flappyCtx.fillStyle = '#f4d03f';
+                flappyCtx.beginPath();
+                flappyCtx.arc(100, 150, 15, 0, Math.PI * 2);
+                flappyCtx.fill();
+                flappyCtx.fillStyle = '#333';
+                flappyCtx.font = '20px Arial';
+                flappyCtx.fillText('点击画面开始起飞', 120, 200);
+            });
+        };
+
+        const resetFlappy = () => {
+             flappyScore.value = 0;
+             flappyState.birdY = 150;
+             flappyState.velocity = 0;
+             flappyState.pipes = [];
+             flappyState.frame = 0;
+             flappyState.playing = true;
+             if (flappyLoop) clearInterval(flappyLoop);
+             flappyLoop = setInterval(flappyUpdate, 24);
+        };
+
+        const flapBird = (e) => {
+            if(!flappyState.playing) { resetFlappy(); return; }
+            flappyState.velocity = -6.5; // jump up
+        };
+
+        const flappyUpdate = () => {
+            if(!flappyCtx) return;
+            const ctx = flappyCtx;
+            
+            flappyState.velocity += 0.4; // gravity
+            flappyState.birdY += flappyState.velocity;
+            
+            // Generate pipes
+            if(flappyState.frame % 100 === 0) {
+                 const pipeGap = 110;
+                 const pipeY = Math.random() * (300 - pipeGap - 60) + 30;
+                 flappyState.pipes.push({ x: 400, y: pipeY, passed: false });
+            }
+            
+            ctx.clearRect(0, 0, 400, 300);
+            
+            // Draw pipes
+            ctx.fillStyle = '#73bf2e';
+            for(let i = flappyState.pipes.length - 1; i >= 0; i--) {
+                 let p = flappyState.pipes[i];
+                 p.x -= 2.5;
+                 const pipeGap = 110; const pipeWidth = 50;
+                 
+                 // Pipe shapes
+                 ctx.fillRect(p.x, 0, pipeWidth, p.y);
+                 ctx.fillRect(p.x, p.y + pipeGap, pipeWidth, 300 - p.y - pipeGap);
+                 
+                 // Score
+                 if(!p.passed && p.x + pipeWidth < 100) { flappyScore.value++; p.passed = true; }
+                 
+                 // Collision
+                 const birdX = 100; const birdR = 12;
+                 if(flappyState.birdY + birdR > 300 || flappyState.birdY - birdR < 0) return flappyGameOver();
+                 if(birdX + birdR > p.x && birdX - birdR < p.x + pipeWidth) {
+                      if(flappyState.birdY - birdR < p.y || flappyState.birdY + birdR > p.y + pipeGap) {
+                           return flappyGameOver();
+                      }
+                 }
+                 if(p.x < -60) flappyState.pipes.splice(i, 1);
+            }
+            
+            // Draw Bird
+            ctx.fillStyle = '#f4d03f';
+            ctx.beginPath();
+            ctx.arc(100, flappyState.birdY, 15, 0, Math.PI * 2);
+            ctx.fill();
+            // bird eye
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.arc(105, flappyState.birdY - 4, 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            flappyState.frame++;
+        };
+
+        const flappyGameOver = () => {
+            clearInterval(flappyLoop);
+            flappyState.playing = false;
+            flappyCtx.fillStyle = 'rgba(0,0,0,0.5)';
+            flappyCtx.fillRect(0,0,400,300);
+            flappyCtx.fillStyle = 'white';
+            flappyCtx.font = 'bold 36px Arial';
+            flappyCtx.fillText('撞到啦', 150, 140);
+            flappyCtx.font = '18px Arial';
+            flappyCtx.fillText('点击或触摸画面重试', 125, 180);
+        };
+
+        const colors = ['#FFC2A8', '#FF9A5A', '#6BCB77', '#A2D2FF', '#FEE440', '#F4A261', '#E7C6FF'];
+        const currentColor = ref('#6BCB77');
+        const fillColor = (e) => { e.target.setAttribute('fill', currentColor.value); };
+
+        const snakeScore = ref(0);
+        const snakePlaying = ref(false);
+        let ctx, snake, food, direction, snakeLoop;
+
+        const initSnake = () => {
+          subGame.value = 'snake';
+          nextTick(() => {
+            const canvas = document.getElementById('snakeCanvas');
+            if(canvas) { ctx = canvas.getContext('2d'); drawSnakeBoard(); }
+          });
+        };
+
+        const drawSnakeBoard = () => {
+          if(!ctx) return;
+          ctx.fillStyle = '#FFFaf2'; ctx.fillRect(0, 0, 400, 300);
+          ctx.font = '22px Arial'; ctx.fillStyle = '#A38C80'; ctx.fillText('准备好了就可以点开始哦 ⭐', 60, 150);
+        };
+
+        const changeDirection = (e) => {
+          const key = e.keyCode;
+          if (key === 37 && direction !== 'right') direction = 'left';
+          else if (key === 38 && direction !== 'down') direction = 'up';
+          else if (key === 39 && direction !== 'left') direction = 'right';
+          else if (key === 40 && direction !== 'up') direction = 'down';
+          if([37, 38, 39, 40].includes(key)) e.preventDefault();
+        };
+
+        const startSnake = () => {
+          if(snakePlaying.value) return;
+          snakePlaying.value = true; snakeScore.value = 0; direction = 'right';
+          snake = [{x: 200, y: 140}, {x: 180, y: 140}, {x: 160, y: 140}];
+          spawnFood();
+          document.addEventListener('keydown', changeDirection);
+          snakeLoop = setInterval(gameLoop, 150);
+        };
+
+        const spawnFood = () => { food = { x: Math.floor(Math.random() * 19) * 20, y: Math.floor(Math.random() * 14) * 20 }; };
+
+        const gameOver = (msg) => {
+          clearInterval(snakeLoop); document.removeEventListener('keydown', changeDirection);
+          snakePlaying.value = false;
+          ctx.fillStyle = 'rgba(255, 250, 242, 0.7)'; ctx.fillRect(0,0,400,300);
+          ctx.fillStyle = '#5C4B41'; ctx.font = 'bold 24px Arial'; ctx.fillText(msg, 40, 150);
+        };
+
+        const stopSnake = () => gameOver('休息一下吧，得分: ' + snakeScore.value);
+
+        const gameLoop = () => {
+          if(!ctx) return;
+          let head = {x: snake[0].x, y: snake[0].y};
+          if (direction === 'right') head.x += 20; if (direction === 'left') head.x -= 20;
+          if (direction === 'up') head.y -= 20; if (direction === 'down') head.y += 20;
+
+          if (head.x < 0 || head.x >= 400 || head.y < 0 || head.y >= 300) return gameOver('撞到了墙墙~ 得分: ' + snakeScore.value);
+          for (let i = 0; i < snake.length; i++) if (head.x === snake[i].x && head.y === snake[i].y) return gameOver('咬到自己的小尾巴了~');
+
+          snake.unshift(head);
+          if (head.x === food.x && head.y === food.y) { snakeScore.value += 10; spawnFood(); } else { snake.pop(); }
+
+          ctx.fillStyle = '#FFFaf2'; ctx.fillRect(0, 0, 400, 300);
+          ctx.fillStyle = '#FF9A5A'; ctx.beginPath(); ctx.arc(food.x + 10, food.y + 10, 9, 0, Math.PI * 2); ctx.fill();
+          for (let i = 0; i < snake.length; i++) {
+            ctx.fillStyle = i === 0 ? '#57C783' : '#6BCB77'; 
+            ctx.beginPath(); ctx.roundRect(snake[i].x + 1, snake[i].y + 1, 18, 18, 4); ctx.fill();
+          }
+        };
+
+        const activeEnv = ref(false);
+        const envMsg = ref('');
+        const isWriting = ref(false);
+        const readEnv = (msg) => { envMsg.value = msg; activeEnv.value = true; };
+        const closeModal = () => { activeEnv.value = false; isWriting.value = false; };
+
+        return {
+          pages, current, switchPage,
+          showChat, cInput, chatMsg, toggleChat, sendChat,
+          bState, bHint, startBreathing, stopBreathing,
+          showLoginModal, isRegister, isLoggedIn, currentUser, loginForm, toggleLoginModal, handleLoginSubmit,
+          showImportModal, importStep, closeImportModal, startImport, flappyScore, initFlappy, flapBird,
+          subGame, colors, currentColor, fillColor, snakeScore, snakePlaying, initSnake, startSnake, stopSnake,
+          activeEnv, envMsg, isWriting, readEnv, closeModal
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
