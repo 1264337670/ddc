@@ -14,12 +14,12 @@ const {
   submitRegister,
 } = useMindIsland()
 
-function onLogin() {
-  submitLogin()
+async function onLogin() {
+  await submitLogin()
 }
 
-function onRegister() {
-  submitRegister()
+async function onRegister() {
+  await submitRegister()
 }
 </script>
 
@@ -44,9 +44,11 @@ function onRegister() {
       </form>
       <form v-else class="auth-form" @submit.prevent="onRegister">
         <input v-model="registerForm.account" placeholder="账号（必填）" />
-        <input v-model="registerForm.password" type="password" placeholder="密码（必填）" />
+        <input v-model="registerForm.password" type="password" placeholder="密码（必填，至少6位且含字母+数字）" />
+        <input v-model="registerForm.confirmPassword" type="password" placeholder="确认密码（必填）" />
+        <p class="password-tip">密码规则：至少6位，必须同时包含字母和数字。</p>
         <input v-model="registerForm.nickname" placeholder="昵称（必填）" />
-        <input v-model="registerForm.xhsUrl" placeholder="小红书账号url（选填）" />
+        <input v-model="registerForm.xhsUrl" placeholder="小红书账号url（选填，用于后续心理分析）" />
         <div class="action-row">
           <button class="primary" type="submit">创建账号</button>
         </div>
@@ -151,5 +153,11 @@ function onRegister() {
   min-height: 28px;
   margin: 0 0 8px;
   color: #d65b75;
+}
+
+.password-tip {
+  margin: -8px 2px 0;
+  color: #6b7f9f;
+  font-size: 0.85rem;
 }
 </style>

@@ -34,9 +34,12 @@ function confirmAndStart() {
     </div>
 
     <Teleport to="body">
-      <div v-if="showAuthorizeModal" class="authorize-mask" @click.self="closeAuthorizeModal">
+      <div v-if="showAuthorizeModal" class="authorize-mask">
         <div class="authorize-modal glass">
-          <h3>数据授权确认</h3>
+          <div class="authorize-head">
+            <h3>数据授权确认</h3>
+            <button type="button" class="close-btn" @click="closeAuthorizeModal">关闭</button>
+          </div>
           <img src="/assets/logo.png" alt="平台标识" class="authorize-logo" />
 
           <label class="agree-row">
@@ -111,6 +114,23 @@ function confirmAndStart() {
 .authorize-modal h3 {
   margin: 0;
   color: #2f4f79;
+}
+
+.authorize-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.close-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(255, 163, 175, 0.3);
+  color: #7a3f53;
+  cursor: pointer;
 }
 
 .authorize-logo {

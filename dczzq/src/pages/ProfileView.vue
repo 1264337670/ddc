@@ -22,6 +22,7 @@ function onAvatarFileChange(event: Event) {
       return
     }
     uploadAvatar(result)
+    void updateProfile()
   }
   reader.readAsDataURL(file)
 }

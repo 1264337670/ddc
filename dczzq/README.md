@@ -29,6 +29,26 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
+### Backend API Base URL
+
+Create `.env` from `.env.example` and set backend URL:
+
+```sh
+cp .env.example .env
+```
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Default value:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
 ### Compile and Hot-Reload for Development
 
 ```sh

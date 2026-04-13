@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue'
 import AnalysisDialog from './components/AnalysisDialog.vue'
+import AiSpriteChat from './components/AiSpriteChat.vue'
 import AuthDialog from './components/AuthDialog.vue'
 import GlobalMessage from './components/GlobalMessage.vue'
 import TopNavBar from './components/TopNavBar.vue'
@@ -23,6 +24,7 @@ onBeforeUnmount(() => {
     </main>
     <AuthDialog />
     <AnalysisDialog />
+    <AiSpriteChat />
     <GlobalMessage />
   </div>
 </template>

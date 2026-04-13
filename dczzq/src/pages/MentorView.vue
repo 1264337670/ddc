@@ -1,51 +1,182 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useMindIsland } from '../composables/useMindIsland'
 
 interface MentorSlot {
-  id: string
+  slotId: string
+  mentorId: number
   teacher: string
   dateText: string
+  dateIso: string
   time: string
   location: string
   intro: string
   avatar: string
   booked: number
+  reservedByMe: boolean
 }
 
 interface AppointmentRecord {
-  id: string
+  id: number
+  mentorId: number
   teacher: string
   dateText: string
+  dateIso: string
   time: string
   location: string
 }
 
 const selectedDate = ref(new Date())
 const calendarCursor = ref(new Date(selectedDate.value.getFullYear(), selectedDate.value.getMonth(), 1))
+const loadingSlots = ref(false)
 
 const searchName = ref('')
 const searchLocation = ref('')
 const appliedSearchName = ref('')
 const appliedSearchLocation = ref('')
 const showMyAppointments = ref(false)
+const isSearchMode = ref(false)
 
-const fixedTimes = ['8:00-9:30', '10:00-11:30', '14:00-15:30', '16:00-17:30']
-const avatars = ['/assets/doctor1.png', '/assets/doctor2.png', '/assets/doctor3.png', '/assets/doctor4.png']
-const teacherPool = [
-  { name: '林溪导师', intro: '温和倾听，擅长焦虑减压与情绪稳定。' },
-  { name: '顾南导师', intro: '聚焦关系沟通与家庭冲突修复。' },
-  { name: '程乔导师', intro: '帮助成长规划与学习节奏重建。' },
-  { name: '沈禾导师', intro: '善于压力管理与自我接纳训练。' },
-  { name: '白言导师', intro: '关注青少年支持与考试焦虑辅导。' },
-  { name: '周棠导师', intro: '擅长睡眠困扰和日常作息调节。' },
-]
-const locationPool = ['A302 咨询室', 'B105 心理室', 'C201 安静室', '线上视频室', 'D101 团辅室']
-const bookedStore = reactive<Record<string, number>>({})
-const reservedStore = reactive<Record<string, boolean>>({})
+const slots = ref<MentorSlot[]>([])
 const myAppointments = ref<AppointmentRecord[]>([])
 
 const { currentUser, showMessage } = useMindIsland()
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || 'http://127.0.0.1:8000'
+
+function getToken() {
+  return window.localStorage.getItem('mind_island_token') || ''
+}
+
+async function requestApi<T>(path: string, init?: RequestInit, withAuth = false): Promise<T> {
+  const headers = new Headers(init?.headers || {})
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  if (withAuth) {
+    const token = getToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  }
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    })
+  } catch {
+    throw new Error('后端不可用或网络异常，请确认 FastAPI 服务和数据库已启动')
+  }
+
+  let body: unknown = null
+  try {
+    body = await response.json()
+  } catch {
+    body = null
+  }
+
+  if (!response.ok) {
+    const detail =
+      typeof body === 'object' && body !== null && 'detail' in body
+        ? String((body as Record<string, unknown>).detail)
+        : `请求失败(${response.status})`
+    throw new Error(detail)
+  }
+
+  return body as T
+}
+
+interface BackendSlot {
+  slot_id: string
+  mentor_id: number
+  teacher: string
+  date_text: string
+  date_iso: string
+  time: string
+  location: string
+  intro: string
+  avatar: string
+  booked: number
+  reserved_by_me: boolean
+}
+
+interface BackendAppointment {
+  id: number
+  mentor_id: number
+  teacher: string
+  date_text: string
+  date_iso: string
+  time: string
+  location: string
+}
+
+function formatDateISO(date: Date) {
+  const y = date.getFullYear()
+  const m = `${date.getMonth() + 1}`.padStart(2, '0')
+  const d = `${date.getDate()}`.padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function mapSlot(item: BackendSlot): MentorSlot {
+  return {
+    slotId: item.slot_id,
+    mentorId: item.mentor_id,
+    teacher: item.teacher,
+    dateText: item.date_text,
+    dateIso: item.date_iso,
+    time: item.time,
+    location: item.location,
+    intro: item.intro,
+    avatar: item.avatar,
+    booked: item.booked,
+    reservedByMe: item.reserved_by_me,
+  }
+}
+
+function mapAppointment(item: BackendAppointment): AppointmentRecord {
+  return {
+    id: item.id,
+    mentorId: item.mentor_id,
+    teacher: item.teacher,
+    dateText: item.date_text,
+    dateIso: item.date_iso,
+    time: item.time,
+    location: item.location,
+  }
+}
+
+async function fetchSlots() {
+  const dateIso = formatDateISO(selectedDate.value)
+  const name = appliedSearchName.value.trim()
+  const location = appliedSearchLocation.value.trim()
+  const query = new URLSearchParams()
+  if (!isSearchMode.value) {
+    query.set('date_value', dateIso)
+  }
+  if (name) {
+    query.set('name', name)
+  }
+  if (location) {
+    query.set('location', location)
+  }
+
+  loadingSlots.value = true
+  try {
+    const data = await requestApi<BackendSlot[]>(`/api/mentor/slots?${query.toString()}`, { method: 'GET' }, true)
+    slots.value = data.map(mapSlot)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '获取导师排班失败'
+    showMessage('error', message)
+  } finally {
+    loadingSlots.value = false
+  }
+}
+
+async function fetchMyAppointments() {
+  const data = await requestApi<BackendAppointment[]>('/api/mentor/appointments/me', { method: 'GET' }, true)
+  myAppointments.value = data.map(mapAppointment)
+}
 
 function debugLog(action: string, payload: Record<string, unknown> = {}) {
   const info = {
@@ -67,41 +198,7 @@ const monthTitle = computed(() => {
   return `${date.getFullYear()}年 ${date.getMonth() + 1}月`
 })
 
-const daySlots = computed<MentorSlot[]>(() => {
-  const date = selectedDate.value
-  const dateText = `${date.getMonth() + 1}月${date.getDate()}日`
-  const daySeed = date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate()
-
-  return fixedTimes.map((time, index) => {
-    const teacher = teacherPool[(daySeed + index) % teacherPool.length] || teacherPool[0] || { name: '导师', intro: '' }
-    const location = locationPool[(daySeed + index * 2) % locationPool.length] || locationPool[0] || 'A302 咨询室'
-    const avatar = avatars[index] || '/assets/doctor1.png'
-    const id = `${date.toDateString()}-${teacher.name}-${time}`
-    if (bookedStore[id] === undefined) {
-      bookedStore[id] = ((daySeed + index * 3) % 4) + 1
-    }
-    return {
-      id,
-      teacher: teacher.name,
-      dateText,
-      time,
-      location,
-      intro: teacher.intro,
-      avatar,
-      booked: bookedStore[id] ?? 1,
-    }
-  })
-})
-
-const filteredSlots = computed(() => {
-  const nameKeyword = appliedSearchName.value.trim()
-  const locationKeyword = appliedSearchLocation.value.trim()
-  return daySlots.value.filter((slot) => {
-    const passName = !nameKeyword || slot.teacher.includes(nameKeyword)
-    const passLocation = !locationKeyword || slot.location.includes(locationKeyword)
-    return passName && passLocation
-  })
-})
+const filteredSlots = computed(() => slots.value)
 
 const calendarDays = computed(() => {
   const first = new Date(calendarCursor.value.getFullYear(), calendarCursor.value.getMonth(), 1)
@@ -136,13 +233,11 @@ function isSelected(date: Date) {
   return sameDate(date, selectedDate.value)
 }
 
-function pickDate(date: Date) {
+async function pickDate(date: Date) {
   selectedDate.value = new Date(date)
-  appliedSearchName.value = ''
-  appliedSearchLocation.value = ''
-  searchName.value = ''
-  searchLocation.value = ''
+  isSearchMode.value = false
   debugLog('pick_date', { date: selectedDate.value.toDateString() })
+  await fetchSlots()
 }
 
 function previousMonth() {
@@ -153,55 +248,84 @@ function nextMonth() {
   calendarCursor.value = new Date(calendarCursor.value.getFullYear(), calendarCursor.value.getMonth() + 1, 1)
 }
 
-function reserveSlot(slot: MentorSlot) {
-  debugLog('reserve_click', { slotId: slot.id, booked: slot.booked, reserved: !!reservedStore[slot.id] })
-  if (!currentUser.value) {
-    showMessage('error', '请先登录再预约导师')
-    debugLog('reserve_blocked_not_login', { slotId: slot.id })
-    return
+async function reserveSlot(slot: MentorSlot) {
+  debugLog('reserve_click', { slotId: slot.slotId, booked: slot.booked, reserved: slot.reservedByMe })
+  try {
+    await requestApi<BackendAppointment>(
+      '/api/mentor/appointments',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          mentor_id: slot.mentorId,
+          appointment_date: slot.dateIso,
+          time_slot: slot.time,
+        }),
+      },
+      true,
+    )
+    showMessage('success', '预约成功')
+    await fetchSlots()
+    if (showMyAppointments.value) {
+      await fetchMyAppointments()
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '预约失败'
+    showMessage('error', message)
+    debugLog('reserve_failed', { slotId: slot.slotId, message })
   }
-  if (reservedStore[slot.id]) {
-    debugLog('reserve_blocked_already_reserved', { slotId: slot.id })
-    return
-  }
-  const current = bookedStore[slot.id] ?? slot.booked
-  bookedStore[slot.id] = Math.min(5, current + 1)
-  reservedStore[slot.id] = true
-  if (!myAppointments.value.some((record) => record.id === slot.id)) {
-    myAppointments.value.unshift({
-      id: slot.id,
-      teacher: slot.teacher,
-      dateText: slot.dateText,
-      time: slot.time,
-      location: slot.location,
-    })
-  }
-  showMessage('success', '预约成功')
-  debugLog('reserve_success', { slotId: slot.id, newBooked: bookedStore[slot.id] })
 }
 
-function applySearch() {
+async function applySearch() {
   const name = searchName.value.trim()
   const location = searchLocation.value.trim()
   if (!name && !location) {
     appliedSearchName.value = ''
     appliedSearchLocation.value = ''
+    isSearchMode.value = false
+    await fetchSlots()
     return
   }
   appliedSearchName.value = name
   appliedSearchLocation.value = location
   debugLog('search_apply', { name, location })
+  isSearchMode.value = true
+  try {
+    await fetchSlots()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '搜索导师失败'
+    showMessage('error', message)
+  }
 }
 
-function openMyAppointments() {
-  if (!currentUser.value) {
-    showMessage('error', '请先登录再查看我的预约')
-    debugLog('open_my_appointments_blocked_not_login')
-    return
+async function openMyAppointments() {
+  try {
+    await fetchMyAppointments()
+    showMyAppointments.value = true
+    debugLog('open_my_appointments', { count: myAppointments.value.length })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '加载预约记录失败'
+    showMessage('error', message)
+    debugLog('open_my_appointments_failed', { message })
   }
-  showMyAppointments.value = true
-  debugLog('open_my_appointments', { count: myAppointments.value.length })
 }
+
+async function cancelAppointment(item: AppointmentRecord) {
+  try {
+    await requestApi<{ detail: string }>(`/api/mentor/appointments/${item.id}`, { method: 'DELETE' }, true)
+    showMessage('success', '取消预约成功')
+    await fetchMyAppointments()
+    if (!isSearchMode.value) {
+      await fetchSlots()
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '取消预约失败'
+    showMessage('error', message)
+  }
+}
+
+onMounted(async () => {
+  await fetchSlots()
+})
 </script>
 
 <template>
@@ -221,11 +345,12 @@ function openMyAppointments() {
     <div class="mentor-layout card-font">
       <article class="schedule-card glass">
         <div class="card-head">
-          <h3>当日排班</h3>
-          <p>{{ selectedDateText }}</p>
+          <h3>{{ isSearchMode ? '搜索结果' : '当日排班' }}</h3>
+          <p>{{ isSearchMode ? '当前列表仅按搜索条件过滤（不受日期限制）' : selectedDateText }}</p>
         </div>
+        <p v-if="loadingSlots" class="empty-tip">正在加载导师排班...</p>
         <div class="schedule-list">
-          <article v-for="slot in filteredSlots" :key="slot.id" class="slot-item">
+          <article v-for="slot in filteredSlots" :key="slot.slotId" class="slot-item">
             <div class="slot-left">
               <h4>{{ slot.teacher }}</h4>
               <p>排班时间：{{ slot.dateText }} {{ slot.time }}</p>
@@ -235,11 +360,12 @@ function openMyAppointments() {
             </div>
             <div class="slot-right">
               <img :src="slot.avatar" :alt="slot.teacher" class="doctor-avatar" />
-              <button class="reserve-btn" :disabled="slot.booked >= 5 || reservedStore[slot.id]" @click="reserveSlot(slot)">
-                {{ reservedStore[slot.id] ? '已预约' : slot.booked >= 5 ? '已满额' : '预约' }}
+              <button class="reserve-btn" :disabled="slot.booked >= 5 || slot.reservedByMe" @click="reserveSlot(slot)">
+                {{ slot.reservedByMe ? '已预约' : slot.booked >= 5 ? '已满额' : '预约' }}
               </button>
             </div>
           </article>
+          <p v-if="!filteredSlots.length" class="empty-tip">暂无排班</p>
         </div>
       </article>
 
@@ -277,7 +403,10 @@ function openMyAppointments() {
             <article v-for="item in myAppointments" :key="item.id" class="appointment-item">
               <p>{{ item.teacher }}</p>
               <p>{{ item.dateText }} {{ item.time }}</p>
-              <p>{{ item.location }}</p>
+              <div class="appointment-bottom">
+                <p>{{ item.location }}</p>
+                <button class="cancel-btn" @click="cancelAppointment(item)">取消预约</button>
+              </div>
             </article>
           </div>
           <p v-else class="empty-tip">暂无预约记录</p>
@@ -523,6 +652,26 @@ function openMyAppointments() {
   border-radius: 10px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.68);
+}
+
+.appointment-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.appointment-bottom p {
+  margin: 4px 0;
+}
+
+.cancel-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  background: #f6d7df;
+  color: #8b4a5d;
 }
 
 .appointment-item p {

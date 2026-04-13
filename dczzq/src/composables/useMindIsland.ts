@@ -2,22 +2,41 @@ import { computed, reactive, ref } from 'vue'
 
 export type NavKey = '首页' | '心理分析' | '心理百科' | '联系导师' | '放松一下' | '秘密树洞'
 
-interface UserAuthRecord {
-  account: string
-  nickname: string
-  password: string
-  xhsUrl: string
-  avatar: string
-  email: string
-  gender: string
-  phone: string
-  signature: string
-}
-
 interface CurrentUser {
   account: string
   nickname: string
   avatar: string
+}
+
+interface BackendUser {
+  id: number
+  account: string
+  nickname: string
+  avatar: string | null
+  xhs_url: string | null
+  email: string | null
+  gender: string | null
+  phone: string | null
+  signature: string | null
+}
+
+interface AuthResponse {
+  access_token: string
+  token_type: string
+  user: BackendUser
+}
+
+interface AnalysisResponse {
+  user_id: number
+  post_count: number
+  health_score: number
+  prediction: {
+    pred_label: number
+    pred_name: string
+    prob_non_clinical: number
+    prob_clinical: number
+  }
+  source: string
 }
 
 interface EncyclopediaItem {
@@ -58,20 +77,36 @@ const routeMap: Record<NavKey, string> = {
 
 const isAuthOpen = ref(false)
 const authMode = ref<'login' | 'register'>('login')
-const currentUser = ref<CurrentUser | null>(null)
-const userStore = reactive<Record<string, UserAuthRecord>>({})
 
-userStore['test001'] = {
-  account: 'test001',
-  nickname: '测试用户',
-  password: '123456',
-  xhsUrl: '',
-  avatar: '',
-  email: '',
-  gender: '',
-  phone: '',
-  signature: '今天也要对自己温柔一点。',
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || 'http://127.0.0.1:8000'
+const TOKEN_KEY = 'mind_island_token'
+const USER_KEY = 'mind_island_user'
+
+function readStorage(key: string): string {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+  return window.localStorage.getItem(key) || ''
 }
+
+function readStoredUser(): CurrentUser | null {
+  const raw = readStorage(USER_KEY)
+  if (!raw) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(raw) as CurrentUser
+    if (!parsed.account) {
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+const accessToken = ref(readStorage(TOKEN_KEY))
+const currentUser = ref<CurrentUser | null>(readStoredUser())
 
 const loginForm = reactive({
   account: '',
@@ -83,6 +118,7 @@ const registerForm = reactive({
   account: '',
   nickname: '',
   password: '',
+  confirmPassword: '',
   xhsUrl: '',
 })
 
@@ -106,6 +142,8 @@ const analysisOpen = ref(false)
 const analyzing = ref(false)
 const analysisProgress = ref(0)
 const analysisAdvice = ref('')
+const analysisScore = ref<number | null>(null)
+const analysisRiskLabel = ref('')
 let analysisTimer: number | null = null
 
 const encyclopediaItems: EncyclopediaItem[] = [
@@ -163,6 +201,7 @@ function resetAuthForm() {
   registerForm.account = ''
   registerForm.nickname = ''
   registerForm.password = ''
+  registerForm.confirmPassword = ''
   registerForm.xhsUrl = ''
 }
 
@@ -183,27 +222,98 @@ function showMessage(type: 'success' | 'error', text: string) {
   }, 2200)
 }
 
-function fillProfileFromAccount(record: UserAuthRecord) {
-  profileForm.avatar = record.avatar
-  profileForm.nickname = record.nickname
-  profileForm.email = record.email
-  profileForm.gender = record.gender
-  profileForm.phone = record.phone
-  profileForm.signature = record.signature
-  profileForm.xhsUrl = record.xhsUrl
+function saveSession(token: string, user: CurrentUser) {
+  accessToken.value = token
+  currentUser.value = user
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(TOKEN_KEY, token)
+    window.localStorage.setItem(USER_KEY, JSON.stringify(user))
+  }
 }
 
-function syncProfileFromCurrentUser() {
-  const account = currentUser.value?.account
-  if (!account) {
-    return
+function clearSession() {
+  accessToken.value = ''
+  currentUser.value = null
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(TOKEN_KEY)
+    window.localStorage.removeItem(USER_KEY)
   }
-  const record = userStore[account]
-  if (!record) {
-    return
-  }
-  fillProfileFromAccount(record)
 }
+
+function applyBackendUser(user: BackendUser) {
+  currentUser.value = {
+    account: user.account,
+    nickname: user.nickname,
+    avatar: user.avatar || '',
+  }
+  profileForm.avatar = user.avatar || ''
+  profileForm.nickname = user.nickname || ''
+  profileForm.email = user.email || ''
+  profileForm.gender = user.gender || ''
+  profileForm.phone = user.phone || ''
+  profileForm.signature = user.signature || ''
+  profileForm.xhsUrl = user.xhs_url || ''
+
+  if (typeof window !== 'undefined' && currentUser.value) {
+    window.localStorage.setItem(USER_KEY, JSON.stringify(currentUser.value))
+  }
+}
+
+async function requestApi<T>(path: string, init?: RequestInit, withAuth = false): Promise<T> {
+  const headers = new Headers(init?.headers || {})
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  if (withAuth && accessToken.value) {
+    headers.set('Authorization', `Bearer ${accessToken.value}`)
+  }
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    })
+  } catch {
+    throw new Error('后端不可用或网络异常，请确认 FastAPI 服务和数据库已启动')
+  }
+
+  let body: unknown = null
+  try {
+    body = await response.json()
+  } catch {
+    body = null
+  }
+
+  if (!response.ok) {
+    const detail =
+      typeof body === 'object' && body !== null && 'detail' in body
+        ? String((body as Record<string, unknown>).detail)
+        : `请求失败(${response.status})`
+    throw new Error(detail)
+  }
+
+  return body as T
+}
+
+async function syncProfileFromCurrentUser() {
+  if (!accessToken.value) {
+    return
+  }
+
+  try {
+    const user = await requestApi<BackendUser>('/api/profile/me', { method: 'GET' }, true)
+    applyBackendUser(user)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '获取个人资料失败'
+    if (message.includes('401') || message.includes('credentials')) {
+      clearSession()
+    }
+    console.info('[AuthDebug]', JSON.stringify({ action: 'sync_profile_failed', message }))
+  }
+}
+
+void syncProfileFromCurrentUser()
 
 function openAuth() {
   authMode.value = 'login'
@@ -216,7 +326,7 @@ function closeAuth() {
   isAuthOpen.value = false
 }
 
-function submitLogin() {
+async function submitLogin() {
   const account = loginForm.account.trim()
   const password = loginForm.password.trim()
   const captchaInput = loginForm.captchaInput.trim()
@@ -231,90 +341,124 @@ function submitLogin() {
     refreshCaptcha()
     return false
   }
-  const saved = userStore[account]
-  if (!saved || saved.password !== password) {
-    authMessage.value = '账号不存在或密码错误。'
-    showMessage('error', authMessage.value)
+
+  try {
+    const result = await requestApi<AuthResponse>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ account, password }),
+    })
+
+    saveSession(result.access_token, {
+      account: result.user.account,
+      nickname: result.user.nickname,
+      avatar: result.user.avatar || '',
+    })
+    applyBackendUser(result.user)
+
+    authMessage.value = '登录成功，欢迎回来。'
+    showMessage('success', '登录成功')
+    window.setTimeout(() => {
+      isAuthOpen.value = false
+      authMessage.value = ''
+      resetAuthForm()
+    }, 300)
+    return true
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '登录失败'
+    authMessage.value = message
+    showMessage('error', message)
     refreshCaptcha()
-    return false
+    return
   }
-  currentUser.value = {
-    account,
-    nickname: saved.nickname,
-    avatar: saved.avatar,
-  }
-  fillProfileFromAccount(saved)
-  authMessage.value = '登录成功，欢迎回来。'
-  showMessage('success', '登录成功')
-  window.setTimeout(() => {
-    isAuthOpen.value = false
-    authMessage.value = ''
-    resetAuthForm()
-  }, 500)
-  return true
+  return false
 }
 
-function submitRegister() {
+async function submitRegister() {
   const account = registerForm.account.trim()
   const nickname = registerForm.nickname.trim()
   const password = registerForm.password.trim()
+  const confirmPassword = registerForm.confirmPassword.trim()
   const xhsUrl = registerForm.xhsUrl.trim()
   if (!account || !nickname || !password) {
     authMessage.value = '账号、密码和昵称为必填项。'
     showMessage('error', authMessage.value)
     return false
   }
-  if (userStore[account]) {
-    authMessage.value = '该账号已存在，请更换。'
+  if (password.length < 6 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    authMessage.value = '密码需至少6位，且必须包含字母和数字。'
     showMessage('error', authMessage.value)
     return false
   }
-  userStore[account] = {
-    account,
-    nickname,
-    password,
-    xhsUrl,
-    avatar: '',
-    email: '',
-    gender: '',
-    phone: '',
-    signature: '',
+  if (password !== confirmPassword) {
+    authMessage.value = '两次输入的密码不一致。'
+    showMessage('error', authMessage.value)
+    return false
   }
-  authMessage.value = '注册成功，请登录。'
-  showMessage('success', '注册成功')
-  authMode.value = 'login'
-  loginForm.account = account
-  loginForm.password = ''
-  refreshCaptcha()
-  return true
+  try {
+    const result = await requestApi<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ account, nickname, password, xhs_url: xhsUrl || null }),
+    })
+
+    saveSession(result.access_token, {
+      account: result.user.account,
+      nickname: result.user.nickname,
+      avatar: result.user.avatar || '',
+    })
+    applyBackendUser(result.user)
+
+    authMessage.value = '注册成功，已自动登录。'
+    showMessage('success', '注册成功')
+    window.setTimeout(() => {
+      isAuthOpen.value = false
+      authMessage.value = ''
+      resetAuthForm()
+    }, 300)
+    return true
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '注册失败'
+    authMessage.value = message
+    showMessage('error', message)
+    return false
+  }
 }
 
 function logout() {
-  currentUser.value = null
+  clearSession()
   authMessage.value = ''
 }
 
-function updateProfile() {
-  const account = currentUser.value?.account
-  if (!account) {
-    return
+async function updateProfile() {
+  if (!accessToken.value) {
+    showMessage('error', '请先登录')
+    return false
   }
-  const record = userStore[account]
-  if (!record) {
-    return
-  }
-  record.nickname = profileForm.nickname.trim() || record.nickname
-  record.avatar = profileForm.avatar.trim()
-  record.email = profileForm.email.trim()
-  record.gender = profileForm.gender.trim()
-  record.phone = profileForm.phone.trim()
-  record.signature = profileForm.signature.trim()
-  record.xhsUrl = profileForm.xhsUrl.trim()
 
-  currentUser.value = {
-    account,
-    nickname: record.nickname,
-    avatar: record.avatar,
+  try {
+    const user = await requestApi<BackendUser>(
+      '/api/profile/me',
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          nickname: profileForm.nickname.trim() || null,
+          avatar: profileForm.avatar.trim() || null,
+          xhs_url: profileForm.xhsUrl.trim() || null,
+          email: profileForm.email.trim() || null,
+          gender: profileForm.gender.trim() || null,
+          phone: profileForm.phone.trim() || null,
+          signature: profileForm.signature.trim() || null,
+        }),
+      },
+      true,
+    )
+
+    applyBackendUser(user)
+    showMessage('success', '资料已保存')
+    return true
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '保存失败'
+    showMessage('error', message)
+    return false
   }
 }
 
@@ -327,35 +471,88 @@ const analysisTitle = computed(() => {
   return `${name} 的心理画像`
 })
 
-function buildAdvice() {
-  const traits = ['感受细腻', '恢复力良好', '同理心强', '自省能力突出']
-  const focuses = ['睡眠节律', '压力释放', '边界表达', '自我肯定']
-  const name = currentUser.value?.nickname || '访客'
-  const seed = Array.from(name).reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  const trait = traits[seed % traits.length]
-  const focus = focuses[(seed + 1) % focuses.length]
-  analysisAdvice.value = `你的近期状态呈现“${trait}”特征，建议优先关注${focus}。每天留出15分钟给自己，做呼吸训练或轻运动，你会更稳地找回内在节奏。`
+function getScoreBandFeedback(score: number) {
+  const safe = Math.max(0, Math.min(100, Math.round(score)))
+  const band = Math.min(9, Math.floor(safe / 10))
+  const messages = [
+    '当前状态非常脆弱，建议你先暂停高压任务，尽快联系专业心理咨询师或导师进行一对一支持。',
+    '你正在承受较高心理负荷，请优先保证睡眠与进食，并尽快寻求线下专业帮助。',
+    '近期情绪风险偏高，建议减少自我苛责，和可信任的人建立每日一次稳定沟通。',
+    '你的身心都在吃力运转，建议把目标缩小到今天可完成的三件小事，并安排放松时段。',
+    '目前状态有明显波动，建议建立规律作息，同时尝试呼吸训练和轻运动来缓冲压力。',
+    '整体处于中等水平，建议继续记录情绪触发点，逐步优化学习或工作的节奏。',
+    '状态正在向稳态靠近，建议保持社交连接和运动习惯，巩固当前恢复趋势。',
+    '你的心理韧性表现不错，继续维持规律生活，并给自己留出主动放松时间。',
+    '当前状态较好，建议延续有效习惯，同时定期复盘情绪与压力来源。',
+    '心理健康分很高，说明你有较强自我调节能力，继续保持并关注长期平衡。',
+  ]
+  return messages[band]
 }
 
-function startAnalysis() {
+function buildAdvice() {
+  if (analysisScore.value === null) {
+    analysisAdvice.value = '暂无分析结果。'
+    return
+  }
+  const scoreFeedback = getScoreBandFeedback(analysisScore.value)
+  const riskText = analysisRiskLabel.value === 'Clinical' ? '模型提示存在风险倾向。' : '模型提示整体偏稳。'
+  analysisAdvice.value = `当前心理健康分为 ${analysisScore.value} 分，${riskText}${scoreFeedback}`
+}
+
+function runFakeProgress(durationMs: number) {
+  return new Promise<void>((resolve) => {
+    const start = Date.now()
+    if (analysisTimer) {
+      window.clearInterval(analysisTimer)
+      analysisTimer = null
+    }
+    analysisTimer = window.setInterval(() => {
+      const elapsed = Date.now() - start
+      const next = Math.min(100, Math.round((elapsed / durationMs) * 100))
+      analysisProgress.value = next
+      if (next >= 100) {
+        if (analysisTimer) {
+          window.clearInterval(analysisTimer)
+          analysisTimer = null
+        }
+        resolve()
+      }
+    }, 80)
+  })
+}
+
+async function startAnalysis() {
+  if (!accessToken.value) {
+    showMessage('error', '请先登录后再进行心理分析')
+    return
+  }
   analysisOpen.value = true
   analyzing.value = true
   analysisProgress.value = 0
   analysisAdvice.value = ''
-  if (analysisTimer) {
-    window.clearInterval(analysisTimer)
-  }
-  analysisTimer = window.setInterval(() => {
-    analysisProgress.value += 10
-    if (analysisProgress.value >= 100) {
-      if (analysisTimer) {
-        window.clearInterval(analysisTimer)
-        analysisTimer = null
-      }
-      analyzing.value = false
-      buildAdvice()
+  analysisScore.value = null
+  analysisRiskLabel.value = ''
+
+  try {
+    const [result] = await Promise.all([
+      requestApi<AnalysisResponse>('/api/analysis/run', { method: 'POST' }, true),
+      runFakeProgress(3000),
+    ])
+    analysisScore.value = result.health_score
+    analysisRiskLabel.value = result.prediction.pred_name
+    buildAdvice()
+    analyzing.value = false
+  } catch (error) {
+    if (analysisTimer) {
+      window.clearInterval(analysisTimer)
+      analysisTimer = null
     }
-  }, 180)
+    analysisProgress.value = 100
+    analyzing.value = false
+    const message = error instanceof Error ? error.message : '心理分析失败'
+    analysisAdvice.value = message
+    showMessage('error', message)
+  }
 }
 
 function closeAnalysis() {
@@ -403,6 +600,8 @@ export function useMindIsland() {
     analyzing,
     analysisProgress,
     analysisAdvice,
+    analysisScore,
+    analysisRiskLabel,
     analysisTitle,
     encyclopediaItems,
     mentors,

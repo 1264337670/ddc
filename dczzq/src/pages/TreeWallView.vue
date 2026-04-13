@@ -1,35 +1,98 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useMindIsland } from '../composables/useMindIsland'
 
 interface CommentItem {
   id: number
   content: string
-  status: 'approved' | 'pending' | 'rejected'
   createdAt: string
 }
 
 interface PostItem {
   id: number
   content: string
-  status: 'approved' | 'pending' | 'rejected'
   createdAt: string
-  likes: number
-  views: number
+  hugCount: number
+  senseCount: number
+  commentCount: number
+  hugged: boolean
+  sensed: boolean
   comments: CommentItem[]
-}
-
-interface ModerationItem {
-  id: number
-  type: 'post' | 'comment'
-  postId: number
-  commentId?: number
-  content: string
-  createdAt: string
 }
 
 const route = useRoute()
 const router = useRouter()
+const { showMessage } = useMindIsland()
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || 'http://127.0.0.1:8000'
+
+function getToken() {
+  return window.localStorage.getItem('mind_island_token') || ''
+}
+
+async function requestApi<T>(path: string, init?: RequestInit, withAuth = false): Promise<T> {
+  const headers = new Headers(init?.headers || {})
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+  if (withAuth) {
+    const token = getToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  })
+
+  let body: unknown = null
+  try {
+    body = await response.json()
+  } catch {
+    body = null
+  }
+
+  if (!response.ok) {
+    const detail =
+      typeof body === 'object' && body !== null && 'detail' in body
+        ? String((body as Record<string, unknown>).detail)
+        : `请求失败(${response.status})`
+    throw new Error(detail)
+  }
+
+  return body as T
+}
+
+interface BackendComment {
+  id: number
+  post_id: number
+  content: string
+  created_at: string
+}
+
+interface BackendPost {
+  id: number
+  tree_slug: string
+  content: string
+  created_at: string
+  hug_count: number
+  sense_count: number
+  comment_count: number
+  hugged: boolean
+  sensed: boolean
+  comments: BackendComment[]
+}
+
+interface ToggleResult {
+  post_id: number
+  reaction_type: 'hug' | 'sense'
+  active: boolean
+  hug_count: number
+  sense_count: number
+}
 
 const treeConfig: Record<string, string> = {
   anxu: '安绪树',
@@ -44,114 +107,78 @@ const leftPanel = ref<'notice' | 'submit'>('notice')
 const postDraft = ref('')
 const commentDrafts = reactive<Record<number, string>>({})
 const expandedComments = reactive<Record<number, boolean>>({})
-const activeState = reactive<Record<number, { hug: boolean; sense: boolean }>>({})
+const loading = ref(false)
 const noticeList = [
   '请勿发布人身攻击与泄露隐私内容。',
-  '所有发帖和评论都需要审核后才会公开显示。',
+  '请尊重他人，不传播未核实信息。',
   '如果内容涉及紧急心理危机，请及时联系学校老师或专业机构。',
 ]
-
-const seedPosts: Record<string, PostItem[]> = {
-  anxu: [
-    {
-      id: 1,
-      content: '最近备赛压力很大，晚上总是失眠，但我还是想继续坚持下去。',
-      status: 'approved',
-      createdAt: '今天 09:15',
-      likes: 46,
-      views: 321,
-      comments: [
-        { id: 11, content: '抱抱你，先把目标拆小，一步一步来。', status: 'approved', createdAt: '今天 09:30' },
-      ],
-    },
-    {
-      id: 2,
-      content: '和朋友闹别扭后心里一直堵着，想主动和好又怕尴尬。',
-      status: 'approved',
-      createdAt: '今天 11:42',
-      likes: 30,
-      views: 268,
-      comments: [
-        { id: 21, content: '可以先发一句“我很在意这段关系”。', status: 'approved', createdAt: '今天 11:56' },
-      ],
-    },
-  ],
-  baitai: [
-    {
-      id: 3,
-      content: '第一次上台汇报，手一直抖，但讲完后发现其实没那么可怕。',
-      status: 'approved',
-      createdAt: '今天 08:24',
-      likes: 52,
-      views: 410,
-      comments: [
-        { id: 31, content: '你已经突破舒适区了，超厉害。', status: 'approved', createdAt: '今天 09:01' },
-      ],
-    },
-  ],
-  nuanguang: [
-    {
-      id: 4,
-      content: '今天在食堂有人给我让座，突然觉得这个世界还是很温暖。',
-      status: 'approved',
-      createdAt: '今天 13:02',
-      likes: 67,
-      views: 520,
-      comments: [
-        { id: 41, content: '善意会传递，愿你也被温柔对待。', status: 'approved', createdAt: '今天 13:20' },
-      ],
-    },
-  ],
-}
-
-const posts = ref<PostItem[]>(seedPosts[slug.value] ? [...seedPosts[slug.value]] : [])
-const seq = ref(1000)
+const posts = ref<PostItem[]>([])
 
 if (!treeConfig[slug.value]) {
   router.replace('/tree-hole')
 }
 
-function nextId() {
-  seq.value += 1
-  return seq.value
+function mapPost(item: BackendPost): PostItem {
+  return {
+    id: item.id,
+    content: item.content,
+    createdAt: item.created_at,
+    hugCount: item.hug_count,
+    senseCount: item.sense_count,
+    commentCount: item.comment_count,
+    hugged: item.hugged,
+    sensed: item.sensed,
+    comments: item.comments.map((comment) => ({
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.created_at,
+    })),
+  }
 }
 
-function formatNow() {
-  return '刚刚'
+async function fetchPosts() {
+  if (!treeConfig[slug.value]) {
+    return
+  }
+  loading.value = true
+  try {
+    const data = await requestApi<BackendPost[]>(`/api/tree/posts?tree_slug=${encodeURIComponent(slug.value)}`, { method: 'GET' }, true)
+    posts.value = data.map(mapPost)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '加载树洞失败'
+    showMessage('error', message)
+  } finally {
+    loading.value = false
+  }
 }
 
-function submitPost() {
+void fetchPosts()
+
+async function submitPost() {
   const content = postDraft.value.trim()
   if (!content) {
     return
   }
-  const postId = nextId()
-  posts.value.unshift({
-    id: postId,
-    content,
-    status: 'pending',
-    createdAt: formatNow(),
-    likes: 0,
-    views: Math.floor(Math.random() * 20) + 1,
-    comments: [],
-  })
-  const queueItem: ModerationItem = {
-    id: nextId(),
-    type: 'post',
-    postId,
-    content,
-    createdAt: formatNow(),
+  try {
+    const created = await requestApi<BackendPost>(
+      '/api/tree/posts',
+      {
+        method: 'POST',
+        body: JSON.stringify({ tree_slug: slug.value, content }),
+      },
+      true,
+    )
+    posts.value.unshift(mapPost(created))
+    postDraft.value = ''
+    showMessage('success', '发帖成功')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '发帖失败'
+    showMessage('error', message)
   }
-  postDraft.value = ''
-  window.setTimeout(() => {
-    const post = posts.value.find((item) => item.id === queueItem.postId)
-    if (post && post.status === 'pending') {
-      post.status = 'approved'
-    }
-  }, 700)
 }
 
-function submitComment(postId: number) {
+async function submitComment(postId: number) {
   const raw = commentDrafts[postId] || ''
   const content = raw.trim()
   if (!content) {
@@ -161,60 +188,61 @@ function submitComment(postId: number) {
   if (!post) {
     return
   }
-  const commentId = nextId()
-  post.comments.push({
-    id: commentId,
-    content,
-    status: 'pending',
-    createdAt: formatNow(),
-  })
-  const queueItem: ModerationItem = {
-    id: nextId(),
-    type: 'comment',
-    postId,
-    commentId,
-    content,
-    createdAt: formatNow(),
+  try {
+    const created = await requestApi<BackendComment>(
+      `/api/tree/posts/${postId}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      },
+      true,
+    )
+    post.comments.push({
+      id: created.id,
+      content: created.content,
+      createdAt: created.created_at,
+    })
+    post.commentCount += 1
+    commentDrafts[postId] = ''
+    showMessage('success', '评论成功')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '评论失败'
+    showMessage('error', message)
   }
-  commentDrafts[postId] = ''
-  window.setTimeout(() => {
-    const foundPost = posts.value.find((item) => item.id === queueItem.postId)
-    const comment = foundPost?.comments.find((item) => item.id === queueItem.commentId)
-    if (comment && comment.status === 'pending') {
-      comment.status = 'approved'
+}
+
+async function toggleReaction(postId: number, type: 'hug' | 'sense') {
+  const post = posts.value.find((item) => item.id === postId)
+  if (!post) {
+    return
+  }
+  try {
+    const result = await requestApi<ToggleResult>(
+      `/api/tree/posts/${postId}/reactions/toggle`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reaction_type: type }),
+      },
+      true,
+    )
+    post.hugCount = result.hug_count
+    post.senseCount = result.sense_count
+    if (type === 'hug') {
+      post.hugged = result.active
     }
-  }, 700)
-}
-
-function likePost(postId: number) {
-  const post = posts.value.find((item) => item.id === postId)
-  if (!post || post.status !== 'approved') {
-    return
+    if (type === 'sense') {
+      post.sensed = result.active
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '操作失败'
+    showMessage('error', message)
   }
 }
 
-function sensePost(postId: number) {
-  const post = posts.value.find((item) => item.id === postId)
-  if (!post || post.status !== 'approved') {
-    return
-  }
-}
-
-function triggerPulse(postId: number, type: 'hug' | 'sense') {
-  if (!activeState[postId]) {
-    activeState[postId] = { hug: false, sense: false }
-  }
-  activeState[postId][type] = true
-}
-
-const approvedPosts = computed(() => posts.value.filter((item) => item.status === 'approved'))
+const approvedPosts = computed(() => [...posts.value])
 
 function approvedComments(post: PostItem) {
-  return post.comments.filter((item) => item.status === 'approved')
-}
-
-function pendingCount(post: PostItem) {
-  return post.comments.filter((item) => item.status === 'pending').length
+  return post.comments
 }
 
 const hotPosts = computed(() => {
@@ -224,16 +252,11 @@ const hotPosts = computed(() => {
 })
 
 function timeScore(createdAt: string) {
-  if (createdAt.includes('刚刚')) {
-    return Date.now()
-  }
-  const match = createdAt.match(/(\d{1,2}):(\d{2})/)
-  if (!match) {
+  const timestamp = Date.parse(createdAt)
+  if (Number.isNaN(timestamp)) {
     return 0
   }
-  const hours = Number(match[1] || 0)
-  const minutes = Number(match[2] || 0)
-  return hours * 60 + minutes
+  return timestamp
 }
 
 function excerpt(content: string) {
@@ -278,12 +301,13 @@ function isCommentsOpen(postId: number) {
         </section>
 
         <section v-else class="rail-content">
-          <textarea v-model="postDraft" placeholder="匿名写下你的心声，提交后进入审核..." />
+          <textarea v-model="postDraft" placeholder="匿名写下你的心声吧！" />
           <button class="submit-btn" type="button" @click="submitPost">匿名发布</button>
         </section>
       </aside>
 
       <main class="center-feed">
+        <p v-if="loading" class="pending">正在加载树洞内容...</p>
         <article v-for="post in approvedPosts" :key="post.id" class="post-card glass-panel">
           <header class="post-head">
             <div class="author-wrap">
@@ -298,30 +322,35 @@ function isCommentsOpen(postId: number) {
             <button
               class="metric like left"
               type="button"
-              @click="likePost(post.id); triggerPulse(post.id, 'hug')"
+              @click="toggleReaction(post.id, 'hug')"
             >
-              <img class="metric-icon" :class="{ active: activeState[post.id]?.hug }" src="/assets/hug.png" alt="抱抱" />
-              <span>抱抱</span>
+              <img class="metric-icon" :class="{ active: post.hugged }" src="/assets/hug.png" alt="抱抱" />
+              <span>抱抱 {{ post.hugCount }}</span>
             </button>
             <button class="metric center" type="button" @click="toggleComments(post.id)">
               <img class="metric-icon" src="/assets/comments.png" alt="评论" />
-              <span>评论</span>
+              <span>评论 {{ post.commentCount }}</span>
             </button>
             <button
               class="metric right"
               type="button"
-              @click="sensePost(post.id); triggerPulse(post.id, 'sense')"
+              @click="toggleReaction(post.id, 'sense')"
             >
-              <img class="metric-icon" :class="{ active: activeState[post.id]?.sense }" src="/assets/sense.png" alt="同感" />
-              <span>同感</span>
+              <img class="metric-icon" :class="{ active: post.sensed }" src="/assets/sense.png" alt="同感" />
+              <span>同感 {{ post.senseCount }}</span>
             </button>
           </footer>
 
           <div v-if="isCommentsOpen(post.id)" class="comment-list">
-            <p v-for="comment in approvedComments(post)" :key="comment.id" class="comment">{{ comment.content }}</p>
-            <p v-if="pendingCount(post) > 0" class="pending">还有 {{ pendingCount(post) }} 条评论待审核</p>
+            <article v-for="comment in approvedComments(post)" :key="comment.id" class="comment-card">
+              <div class="comment-head">
+                <span class="comment-avatar">👤</span>
+                <span class="comment-time">{{ comment.createdAt }}</span>
+              </div>
+              <p class="comment">{{ comment.content }}</p>
+            </article>
             <div class="comment-editor">
-              <input v-model="commentDrafts[post.id]" placeholder="匿名评论（需审核）" />
+              <input v-model="commentDrafts[post.id]" placeholder="匿名评论" />
               <button type="button" @click="submitComment(post.id)">发送</button>
             </div>
           </div>
@@ -499,6 +528,30 @@ function isCommentsOpen(postId: number) {
   border-radius: 10px;
   padding: 8px;
   background: rgba(232, 244, 255, 0.88);
+}
+
+.comment-card {
+  margin-top: 7px;
+}
+
+.comment-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.comment-time {
+  color: #6b86af;
+  font-size: 0.86rem;
 }
 
 .pending {
