@@ -23,7 +23,7 @@ function enterTreeForum(tree: TreeItem) {
 <template>
   <section class="tree-hole reveal">
     <h2>安全树洞</h2>
-    <p class="desc">选择一棵树，进入匿名分享与互助社区。内容采用前端 mock 审核流，后续可直接接入后端与数据库。</p>
+    <p class="desc">选择一棵树，进入匿名分享与互助社区。</p>
     <div class="tree-row">
       <button
         v-for="tree in trees"

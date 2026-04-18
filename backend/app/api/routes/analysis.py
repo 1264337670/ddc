@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.show_config import get_demo_result
 from app.db.models import User
 from app.db.schemas import AnalysisPrediction, AnalysisRunResponse
 
@@ -243,6 +244,21 @@ def _run_inference(timeline_features: List[Dict[str, Any]], runtime: Dict[str, A
 def run_user_analysis(
     current_user: User = Depends(get_current_user),
 ) -> AnalysisRunResponse:
+    demo_result = get_demo_result(int(current_user.id))
+    if demo_result is not None:
+        return AnalysisRunResponse(
+            user_id=demo_result.user_id,
+            post_count=demo_result.post_count,
+            health_score=demo_result.health_score,
+            prediction=AnalysisPrediction(
+                pred_label=demo_result.pred_label,
+                pred_name=demo_result.pred_name,
+                prob_non_clinical=demo_result.prob_non_clinical,
+                prob_clinical=demo_result.prob_clinical,
+            ),
+            source="show_config",
+        )
+
     runtime = _get_runtime()
 
     pkl_path = os.path.join(PKL_DIR, f"{current_user.id}.pkl")

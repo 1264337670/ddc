@@ -54,7 +54,8 @@ const slides: HomeSlide[] = [
   },
 ]
 
-const activeSlide = computed(() => slides[activeIndex.value] ?? slides[0])
+const defaultSlide: HomeSlide = slides[0] as HomeSlide
+const activeSlide = computed<HomeSlide>(() => slides[activeIndex.value] ?? defaultSlide)
 
 function switchSlide(index: number) {
   activeIndex.value = index
