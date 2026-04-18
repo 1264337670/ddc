@@ -11,10 +11,12 @@ CREATE TABLE IF NOT EXISTS users (
   nickname VARCHAR(64) NOT NULL,
   avatar TEXT NULL,
   xhs_url VARCHAR(255) NULL,
+  xhs_audit_status VARCHAR(16) NOT NULL DEFAULT 'pending',
   email VARCHAR(120) NULL,
   gender VARCHAR(16) NULL,
   phone VARCHAR(32) NULL,
   signature VARCHAR(255) NULL,
+  role VARCHAR(16) NOT NULL DEFAULT 'user',
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -163,7 +165,7 @@ ON DUPLICATE KEY UPDATE
   avatar = VALUES(avatar),
   is_active = VALUES(is_active);
 
-USE mind_island;
+-- USE mind_island;
 
 DELETE FROM mentor_schedules 
 WHERE schedule_date >= '2026-04-01' 
@@ -193,3 +195,23 @@ CROSS JOIN (
   SELECT 3, '14:00-15:30' UNION ALL
   SELECT 4, '16:00-17:30'
 ) AS s;
+
+-- ===============================
+-- 2026-04-18 管理员角色体系迁移SQL
+-- 说明：执行后将支持 users.role 字段（user/admin）
+-- ===============================
+
+ALTER TABLE users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'user' AFTER signature;
+
+
+
+-- 示例：将指定账号提升为管理员（把 admin 账号改成你的实际账号）
+-- UPDATE users SET role = 'admin' WHERE account = 'admin';
+
+
+-- ===============================
+-- 2026-04-18 小红书信息审核迁移SQL
+-- 说明：执行后将支持 users.xhs_audit_status 字段（pending/approved/rejected）
+-- ===============================
+
+ALTER TABLE users ADD COLUMN xhs_audit_status VARCHAR(16) NOT NULL DEFAULT 'pending' AFTER xhs_url;

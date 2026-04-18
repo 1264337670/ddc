@@ -1,16 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from typing import Dict
+from pathlib import Path
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.admin import router as admin_router
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.mentor import router as mentor_router
 from app.api.routes.profile import router as profile_router
 from app.api.routes.tree_hole import router as tree_hole_router
 from app.core.config import settings
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+AVATAR_DIR = PROJECT_ROOT / "avatar_uploads"
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title=settings.app_name)
 
@@ -24,6 +31,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/avatar-files", StaticFiles(directory=str(AVATAR_DIR)), name="avatar-files")
 
 
 @app.exception_handler(OperationalError)
@@ -59,3 +68,4 @@ app.include_router(tree_hole_router)
 app.include_router(mentor_router)
 app.include_router(analysis_router)
 app.include_router(chat_router)
+app.include_router(admin_router)

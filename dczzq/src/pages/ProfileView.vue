@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useMindIsland } from '../composables/useMindIsland'
 
-const { currentUser, profileForm, uploadAvatar, updateProfile, syncProfileFromCurrentUser } = useMindIsland()
+const router = useRouter()
+const { currentUser, profileForm, uploadAvatarFile, updateProfile, syncProfileFromCurrentUser, isAdmin } = useMindIsland()
 const layoutRef = ref<HTMLElement | null>(null)
 const leftCardRef = ref<HTMLElement | null>(null)
 const rightCardRef = ref<HTMLElement | null>(null)
 
 const avatarSrc = computed(() => profileForm.avatar || currentUser.value?.avatar || '')
+const roleText = computed(() => (currentUser.value?.role === 'admin' ? '管理员' : '普通用户'))
 
 function onAvatarFileChange(event: Event) {
   const input = event.target as HTMLInputElement
@@ -15,16 +18,7 @@ function onAvatarFileChange(event: Event) {
   if (!file) {
     return
   }
-  const reader = new FileReader()
-  reader.onload = () => {
-    const result = typeof reader.result === 'string' ? reader.result : ''
-    if (!result) {
-      return
-    }
-    uploadAvatar(result)
-    void updateProfile()
-  }
-  reader.readAsDataURL(file)
+  void uploadAvatarFile(file)
 }
 
 function logProfileLayout(reason: string) {
@@ -48,6 +42,10 @@ function logProfileLayout(reason: string) {
 
 function onResize() {
   logProfileLayout('window_resize')
+}
+
+function goAdminPage() {
+  router.push('/admin')
 }
 
 onMounted(() => {
@@ -111,8 +109,13 @@ onBeforeUnmount(() => {
         <div class="meta">
           <h3>{{ profileForm.nickname || currentUser?.nickname || '未设置昵称' }}</h3>
           <p>账号：{{ currentUser?.account || '未登录' }}</p>
+          <p>身份：{{ roleText }}</p>
         </div>
       </article>
+
+      <div v-if="isAdmin" class="admin-entry-wrap">
+        <button class="admin-entry-btn" @click="goAdminPage">进入管理界面</button>
+      </div>
     </div>
   </section>
 </template>
@@ -128,6 +131,9 @@ onBeforeUnmount(() => {
   margin: 12px auto 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+  grid-template-areas:
+    'left right'
+    'left admin';
   gap: 18px;
   width: min(100%, 1300px);
   align-items: start;
@@ -147,6 +153,7 @@ onBeforeUnmount(() => {
 }
 
 .left-card {
+  grid-area: left;
   display: grid;
   gap: 12px;
   justify-items: center;
@@ -172,6 +179,7 @@ onBeforeUnmount(() => {
 }
 
 .right-card {
+  grid-area: right;
   display: grid;
   align-content: start;
   gap: 12px;
@@ -228,6 +236,27 @@ onBeforeUnmount(() => {
   font-size: 1.15rem;
 }
 
+.admin-entry-wrap {
+  grid-area: admin;
+  justify-self: end;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 8px;
+  transform: translateX(var(--avatar-card-offset-x));
+}
+
+.admin-entry-btn {
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  background: linear-gradient(120deg, #ffc5dc, #ffdced);
+  color: #8a3b61;
+  font-weight: 700;
+  box-shadow: 0 10px 22px rgba(227, 144, 180, 0.28);
+}
+
 .primary {
   border: 0;
   border-radius: 999px;
@@ -256,11 +285,20 @@ onBeforeUnmount(() => {
 @media (max-width: 860px) {
   .profile-layout {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'left'
+      'right'
+      'admin';
     gap: 14px;
   }
 
   .right-card {
     width: 100%;
+    transform: none;
+  }
+
+  .admin-entry-wrap {
+    max-width: none;
     transform: none;
   }
 

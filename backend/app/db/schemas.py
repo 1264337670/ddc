@@ -7,8 +7,10 @@ class UserPublic(BaseModel):
     id: int
     account: str
     nickname: str
+    role: str = "user"
     avatar: Optional[str] = None
     xhs_url: Optional[str] = None
+    xhs_audit_status: str = "pending"
     email: Optional[EmailStr] = None
     gender: Optional[str] = None
     phone: Optional[str] = None
@@ -155,3 +157,92 @@ class ChatMessageItem(BaseModel):
 class ChatStreamRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     history: List[ChatMessageItem] = Field(default_factory=list)
+
+
+class AdminMentorItem(BaseModel):
+    id: int
+    name: str
+    intro: str
+    location: str
+    avatar: str
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminMentorCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    intro: str = Field(min_length=1, max_length=255)
+    location: str = Field(min_length=1, max_length=64)
+    avatar: str = Field(min_length=1, max_length=255)
+    is_active: bool = True
+
+
+class AdminMentorUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    intro: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    location: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    avatar: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    is_active: Optional[bool] = None
+
+
+class AdminScheduleItem(BaseModel):
+    id: int
+    mentor_id: int
+    mentor_name: str
+    schedule_date: date
+    time_slot: str
+    capacity: int
+    is_active: bool
+
+
+class AdminScheduleCreateRequest(BaseModel):
+    mentor_id: int
+    schedule_date: date
+    time_slot: str = Field(min_length=3, max_length=32)
+    capacity: int = Field(default=5, ge=1, le=200)
+    is_active: bool = True
+
+
+class AdminScheduleUpdateRequest(BaseModel):
+    mentor_id: Optional[int] = None
+    schedule_date: Optional[date] = None
+    time_slot: Optional[str] = Field(default=None, min_length=3, max_length=32)
+    capacity: Optional[int] = Field(default=None, ge=1, le=200)
+    is_active: Optional[bool] = None
+
+
+class AdminTreePostItem(BaseModel):
+    id: int
+    tree_slug: str
+    content: str
+    status: str
+    author_account: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class AdminTreeCommentItem(BaseModel):
+    id: int
+    post_id: int
+    content: str
+    status: str
+    author_account: Optional[str] = None
+    created_at: str
+
+
+class AdminStatusUpdateRequest(BaseModel):
+    status: str = Field(pattern='^(approved|blocked)$')
+
+
+class AdminXhsAuditItem(BaseModel):
+    user_id: int
+    account: str
+    nickname: str
+    xhs_url: str
+    xhs_audit_status: str
+    updated_at: str
+
+
+class AdminXhsAuditUpdateRequest(BaseModel):
+    status: str = Field(pattern='^(approved|rejected)$')

@@ -14,6 +14,7 @@ const {
   analysisDemoImageIndex,
   analysisDemoWordcloudVisible,
   analysisDemoResultVisible,
+  analysisWordcloudImageUrl,
   analysisTitle,
   showAnalysisWordcloud,
   showAnalysisResult,
@@ -44,7 +45,7 @@ const scoreDisplay = computed(() => {
         <button type="button" class="close-btn" @click="closeAnalysis">关闭</button>
       </div>
       <p v-if="analyzing">正在导入情绪数据与行为节律...</p>
-      <div v-if="analyzing && analysisDemoMode" class="demo-carousel">
+      <div v-if="analyzing && analysisDemoMode && analysisDemoImages.length" class="demo-carousel">
         <div class="demo-carousel-bg"></div>
         <img :src="analysisDemoImages[analysisDemoImageIndex]" alt="分析演示轮播" />
       </div>
@@ -53,12 +54,12 @@ const scoreDisplay = computed(() => {
       </div>
       <div v-if="!analyzing" class="analysis-result">
         <div v-if="analysisDemoMode" class="demo-actions">
-          <button type="button" class="action-btn" @click="showAnalysisWordcloud">查看分析词云</button>
+          <button v-if="analysisWordcloudImageUrl" type="button" class="action-btn" @click="showAnalysisWordcloud">查看分析词云</button>
           <button type="button" class="action-btn" @click="showAnalysisResult">查看分析结果</button>
         </div>
 
         <div v-if="analysisDemoMode && analysisDemoWordcloudVisible" class="wordcloud-wrap">
-          <img src="/wordcloud.png" alt="分析词云" class="wordcloud" />
+          <img :src="analysisWordcloudImageUrl" alt="分析词云" class="wordcloud" />
           <p class="wordcloud-note">基于小红书文本生成的高频词云</p>
         </div>
 

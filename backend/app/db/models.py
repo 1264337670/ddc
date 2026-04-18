@@ -12,10 +12,12 @@ class User(Base):
     nickname = Column(String(64), nullable=False)
     avatar = Column(Text, nullable=True)
     xhs_url = Column(String(255), nullable=True)
+    xhs_audit_status = Column(String(16), nullable=False, default="pending")
     email = Column(String(120), unique=True, nullable=True)
     gender = Column(String(16), nullable=True)
     phone = Column(String(32), unique=True, nullable=True)
     signature = Column(String(255), nullable=True)
+    role = Column(String(16), nullable=False, default="user")
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(

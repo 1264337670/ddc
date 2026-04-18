@@ -15,9 +15,41 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 CHECKPOINT_PATH = os.path.join(BACKEND_ROOT, "best_full_model.pth")
 PKL_DIR = os.path.join(BACKEND_ROOT, "pkl")
+FRONT_PUBLIC_DIR = os.path.abspath(os.path.join(BACKEND_ROOT, "..", "dczzq", "public"))
 MAX_TEXT_LEN = 256
 
 _RUNTIME_CACHE: Dict[str, Any] = {}
+
+
+def _collect_user_analysis_assets(user_id: int) -> Dict[str, Any]:
+    show_dir = os.path.join(FRONT_PUBLIC_DIR, "show", str(user_id))
+    word_dir = os.path.join(FRONT_PUBLIC_DIR, "word", str(user_id))
+
+    images: List[str] = []
+    if os.path.isdir(show_dir):
+        candidates = []
+        for name in os.listdir(show_dir):
+            lower = name.lower()
+            if lower.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                candidates.append(name)
+        for name in sorted(candidates):
+            images.append(f"/show/{user_id}/{name}")
+
+    wordcloud_url = ""
+    if os.path.isdir(word_dir):
+        candidates = []
+        for name in os.listdir(word_dir):
+            lower = name.lower()
+            if lower.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                candidates.append(name)
+        if candidates:
+            wordcloud_url = f"/word/{user_id}/{sorted(candidates)[0]}"
+
+    return {
+        "show_images": images,
+        "wordcloud_url": wordcloud_url,
+        "has_assets": bool(images or wordcloud_url),
+    }
 
 
 def _get_runtime() -> Dict[str, Any]:
@@ -263,7 +295,7 @@ def run_user_analysis(
 
     pkl_path = os.path.join(PKL_DIR, f"{current_user.id}.pkl")
     if not os.path.exists(pkl_path):
-        raise HTTPException(status_code=400, detail=f"未找到用户pkl文件: {pkl_path}")
+        raise HTTPException(status_code=400, detail="小红书数据还未审核完成，请耐心等待")
 
     try:
         with open(pkl_path, "rb") as fp:
@@ -282,3 +314,16 @@ def run_user_analysis(
         prediction=prediction,
         source="model",
     )
+
+
+@router.get("/assets/me")
+def get_my_analysis_assets(
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    assets = _collect_user_analysis_assets(int(current_user.id))
+    return {
+        "user_id": int(current_user.id),
+        "show_images": assets["show_images"],
+        "wordcloud_url": assets["wordcloud_url"],
+        "has_assets": assets["has_assets"],
+    }

@@ -1,0 +1,109 @@
+{
+  "id": "ddc-frontend-timeline-20260416-001",
+  "messages": [
+    {
+      "role": "user",
+      "content": "首页到秘密树洞这六个页面右下角都要放一个小精灵，点击后弹出聊天窗口。"
+    },
+    {
+      "role": "assistant",
+      "content": "已实现全局小精灵聊天组件，并在六个指定页面统一挂载，支持展开/收起聊天面板。"
+    },
+    {
+      "role": "user",
+      "content": "小精灵不要太突兀，先做圆角图标，悬浮要有动画，入口位置固定右下角。"
+    },
+    {
+      "role": "assistant",
+      "content": "已优化小精灵入口样式，增加圆角、阴影和悬浮动效，并固定在右下角显示。"
+    },
+    {
+      "role": "user",
+      "content": "聊天不要再是假数据，前端要接后端真实流式返回。"
+    },
+    {
+      "role": "assistant",
+      "content": "前端已改为 fetch 流式读取后端 SSE 输出，实时拼接 assistant 回复文本。"
+    },
+    {
+      "role": "user",
+      "content": "接口失败时用户看不到原因，报错信息需要在聊天窗口展示出来。"
+    },
+    {
+      "role": "assistant",
+      "content": "已增强错误处理，非 2xx 时读取后端 detail 并在聊天面板中展示可读错误提示。"
+    },
+    {
+      "role": "user",
+      "content": "分析结果页的弹窗交互有问题，点击遮罩会误关闭。"
+    },
+    {
+      "role": "assistant",
+      "content": "已禁用遮罩点击关闭行为，改为明确的按钮关闭路径。"
+    },
+    {
+      "role": "user",
+      "content": "分析授权弹窗和分析结果弹窗都加右上角关闭按钮。"
+    },
+    {
+      "role": "assistant",
+      "content": "两个弹窗都已增加右上角关闭按钮，交互一致性已统一。"
+    },
+    {
+      "role": "user",
+      "content": "心理分析页面加载动画保留 3 秒，但结果文案不要固定，要按分数区间映射。"
+    },
+    {
+      "role": "assistant",
+      "content": "已保留 3 秒分析流程动画，反馈文本改为按每 10 分区间映射展示。"
+    },
+    {
+      "role": "user",
+      "content": "把小精灵图片替换成我放在 assets 里的 xiaoyu.png。"
+    },
+    {
+      "role": "assistant",
+      "content": "已将入口图替换为 xiaoyu.png，并同步更新资源引用路径。"
+    },
+    {
+      "role": "user",
+      "content": "小精灵再放大一点，当前太小。"
+    },
+    {
+      "role": "assistant",
+      "content": "已将小精灵整体尺寸进一步放大，并保持移动端与桌面端比例协调。"
+    },
+    {
+      "role": "user",
+      "content": "不是一点，是放大到 1.5 倍。"
+    },
+    {
+      "role": "assistant",
+      "content": "已按 1.5 倍精确调整入口尺寸及点击区域，视觉与可用性同步提升。"
+    },
+    {
+      "role": "user",
+      "content": "小精灵除了首页等页面，还要在 profile 和 tree-wall 页面显示。"
+    },
+    {
+      "role": "assistant",
+      "content": "已扩展可见路由白名单，profile 与 tree-wall 页面均可显示小精灵。"
+    },
+    {
+      "role": "user",
+      "content": "联系导师页面里，取消预约按钮位置不对，放到每条记录右下角并与地点同一水平线。"
+    },
+    {
+      "role": "assistant",
+      "content": "已调整卡片布局，取消预约按钮移动到右下区域并与地点信息水平对齐。"
+    },
+    {
+      "role": "user",
+      "content": "导师筛选希望先按导师/地点搜出全量，再点日历按日期二次筛选。"
+    },
+    {
+      "role": "assistant",
+      "content": "前端已改为搜索模式与日期模式协同：先展示符合关键词的全部导师，再按日期过滤可预约时段。"
+    }
+  ]
+}

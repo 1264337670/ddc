@@ -1,0 +1,69 @@
+{
+  "id": "ddc-dev-history-20260416-001",
+  "messages": [
+    {
+      "role": "user",
+      "content": "取消预约按钮放在每条记录卡片右下角，和地点同一水平线；排班信息要落库，搜索导师或地点时显示所有符合条件教师，点击日历再按日期筛选，并补充最近一周示例排班。"
+    },
+    {
+      "role": "assistant",
+      "content": "已将导师排班改为数据库表驱动并新增取消预约接口，前端导师页改为搜索模式和日期模式切换，取消预约按钮按要求放在卡片右下角同水平线；同时在 SQL 中补充了示例排班数据。"
+    },
+    {
+      "role": "user",
+      "content": "心理分析现在是假的，需要接成真的：从数据库取当前登录用户帖子，处理成 pkl，调用 pth 实时推理，返回 pred_label、pred_name、prob_non_clinical、prob_clinical。"
+    },
+    {
+      "role": "assistant",
+      "content": "已新增真实分析路由并接入模型推理链路，前端保留 3 秒进度条但结果改为后端真实返回，health_score 使用 prob_non_clinical 映射。"
+    },
+    {
+      "role": "user",
+      "content": "models.py 搬到 backend 目录了，完善模型调用逻辑；另外每 10 分一个区间写死反馈文案；首页到秘密树洞六个页面右下角加小精灵，点击弹出可聊天窗口。"
+    },
+    {
+      "role": "assistant",
+      "content": "已修正模型导入与推理路径，前端分析文案改为 10 分区间映射；新增全局小精灵聊天组件并挂载到六个页面，支持右侧抽屉弹出与对话交互。"
+    },
+    {
+      "role": "user",
+      "content": "我用的是 SiliconFlow，模型是 Pro/zai-org/GLM-4.7，聊天要流式输出；另外分析时点弹窗外会消失，要加右上角关闭按钮。"
+    },
+    {
+      "role": "assistant",
+      "content": "已将聊天后端改为 SiliconFlow 兼容调用并做流式返回，默认模型切换为 GLM；分析授权弹窗和分析结果弹窗都改为右上角关闭，禁用点遮罩误关闭。"
+    },
+    {
+      "role": "user",
+      "content": "聊天接口报 500，日志显示 openai 客户端初始化参数 proxie/proxies 异常。"
+    },
+    {
+      "role": "assistant",
+      "content": "已移除 OpenAI SDK 路径，改为 requests 直连 SiliconFlow chat/completions 并流式转发，规避 httpx 兼容问题。"
+    },
+    {
+      "role": "user",
+      "content": "心理分析改需求：不再从数据库转 pkl，我会把 pkl 放到 backend/pkl，命名 user_id.pkl，直接读取推理。"
+    },
+    {
+      "role": "assistant",
+      "content": "已改为直接读取 backend/pkl/{user_id}.pkl 推理，并兼容多种 timeline_features 结构。"
+    },
+    {
+      "role": "user",
+      "content": "我在 assets 新增 xiaoyu.png，右下角小精灵换成这个图；另外报错 No module named numpy._core。"
+    },
+    {
+      "role": "assistant",
+      "content": "已把小精灵入口替换为 xiaoyu.png 并优化视觉；numpy._core 报错是 pkl 生成环境与读取环境的 numpy 版本不一致，建议在当前后端环境重生 pkl。"
+    },
+    {
+      "role": "user",
+      "content": "联系导师 2026 年 4 月整月排班 SQL 执行报 1064。"
+    },
+    {
+      "role": "assistant",
+      "content": "已将原 CTE 版本改为更兼容的数字表派生写法，支持 ON DUPLICATE KEY UPDATE，在更多 MySQL 版本下可稳定执行。"
+    }
+  ]
+}

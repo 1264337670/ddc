@@ -1,0 +1,85 @@
+{
+  "id": "ddc-database-timeline-20260416-001",
+  "messages": [
+    {
+      "role": "user",
+      "content": "导师排班不能只写前端假数据，要真正落库并支持预约。"
+    },
+    {
+      "role": "assistant",
+      "content": "已把排班改为数据库表驱动，新增导师排班查询与预约相关后端接口。"
+    },
+    {
+      "role": "user",
+      "content": "请补一批最近一周可用排班的示例数据，方便联调。"
+    },
+    {
+      "role": "assistant",
+      "content": "已在数据库脚本中补充最近一周导师排班示例插入语句。"
+    },
+    {
+      "role": "user",
+      "content": "预约记录里需要能取消预约，并且数据库状态要同步更新。"
+    },
+    {
+      "role": "assistant",
+      "content": "已新增取消预约接口并更新对应预约状态字段，保证数据库状态与前端展示一致。"
+    },
+    {
+      "role": "user",
+      "content": "导师搜索想按姓名或地点查，数据库查询要支持模糊匹配。"
+    },
+    {
+      "role": "assistant",
+      "content": "已将排班查询改为关键词筛选（导师名/地点）后再按日期过滤，满足联合检索场景。"
+    },
+    {
+      "role": "user",
+      "content": "我需要 2026 年 4 月整月导师排班 SQL。"
+    },
+    {
+      "role": "assistant",
+      "content": "已给出 2026-04-01 到 2026-04-30 的整月排班插入方案，并支持冲突时更新。"
+    },
+    {
+      "role": "user",
+      "content": "执行后报 1064，语法错误。"
+    },
+    {
+      "role": "assistant",
+      "content": "已定位为 CTE 在目标数据库版本上的兼容性问题，需改成更通用写法。"
+    },
+    {
+      "role": "user",
+      "content": "请直接改成我这个库能跑的 SQL。"
+    },
+    {
+      "role": "assistant",
+      "content": "已将排班 SQL 改为数字派生表 + UNION ALL 生成日期与时段的写法，并保留 ON DUPLICATE KEY UPDATE。"
+    },
+    {
+      "role": "user",
+      "content": "这个改法已经写回到 schema 文件了吗？"
+    },
+    {
+      "role": "assistant",
+      "content": "已写入 database_schema.sql 对应排班段，可直接执行验证。"
+    },
+    {
+      "role": "user",
+      "content": "分析功能后续不从数据库取帖子了，改成我外部提供 pkl。"
+    },
+    {
+      "role": "assistant",
+      "content": "分析链路已按新需求切换为读取 backend/pkl/{user_id}.pkl，数据库帖子提取路径已绕过。"
+    },
+    {
+      "role": "user",
+      "content": "后续如果我换数据库版本，你这套 SQL 怎么保证兼容？"
+    },
+    {
+      "role": "assistant",
+      "content": "建议继续采用无 CTE 的通用 DML 模板，并按目标版本微调日期生成片段；当前脚本已优先选择高兼容方案。"
+    }
+  ]
+}

@@ -18,11 +18,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 120
 
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173"
 
     siliconflow_api_key: str = ""
     siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
-    siliconflow_model: str = "Pro/zai-org/GLM-4.7"
+    siliconflow_model: str = "THUDM/GLM-4-9B-0414"
     siliconflow_system_prompt: str = "你是一个温暖、专业、谨慎的校园心理陪伴助手，优先提供支持性建议，不做医疗诊断。"
 
     analysis_use_hf_encoders: bool = False

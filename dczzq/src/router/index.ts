@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import EncyclopediaView from '../pages/EncyclopediaView.vue'
+import AdminView from '../pages/AdminView.vue'
 import HomeView from '../pages/HomeView.vue'
 import MentorView from '../pages/MentorView.vue'
 import ProfileView from '../pages/ProfileView.vue'
@@ -19,6 +20,7 @@ const router = createRouter({
     { path: '/tree-hole', name: 'tree-hole', component: TreeHoleView },
     { path: '/tree-hole/:treeSlug', name: 'tree-wall', component: TreeWallView },
     { path: '/profile', name: 'profile', component: ProfileView },
+    { path: '/admin', name: 'admin', component: AdminView },
   ],
 })
 

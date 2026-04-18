@@ -7,12 +7,14 @@ interface CurrentUser {
   account: string
   nickname: string
   avatar: string
+  role: 'user' | 'admin'
 }
 
 interface BackendUser {
   id: number
   account: string
   nickname: string
+  role: string
   avatar: string | null
   xhs_url: string | null
   email: string | null
@@ -102,6 +104,9 @@ function readStoredUser(): CurrentUser | null {
     if (!parsed.account) {
       return null
     }
+    if (!parsed.role) {
+      parsed.role = 'user'
+    }
     return parsed
   } catch {
     return null
@@ -152,23 +157,11 @@ let analysisTimer: number | null = null
 let demoCarouselTimer: number | null = null
 
 const analysisDemoMode = ref(false)
-const analysisDemoImages = [
-  '/show_example/68baacff000000001d014377_1.jpg',
-  '/show_example/68d3f984000000001203dc25_1.jpg',
-  '/show_example/68f2109f00000000070340e7_1.jpg',
-  '/show_example/695620b2000000001e02754a_1.jpg',
-  '/show_example/6958d726000000001f009eb2_1.jpg',
-  '/show_example/69749875000000000b0111b8_1.jpg',
-  '/show_example/69aeeabc000000002602ef1d_1.jpg',
-  '/show_example/69b2231b000000002202f34c_1.jpg',
-  '/show_example/69ba8ac6000000001b003151_1.jpg',
-  '/show_example/69ba8d76000000001d01bff6_1.jpg',
-  '/show_example/69be9a96000000001a02cb2a_1.jpg',
-  '/show_example/69df5a4c0000000023011bcf_1.jpg',
-]
+const analysisDemoImages = ref<string[]>([])
 const analysisDemoImageIndex = ref(0)
 const analysisDemoWordcloudVisible = ref(false)
 const analysisDemoResultVisible = ref(false)
+const analysisWordcloudImageUrl = ref('')
 
 const encyclopediaItems: EncyclopediaItem[] = [
   // 情绪压力
@@ -263,6 +256,7 @@ function applyBackendUser(user: BackendUser) {
     account: user.account,
     nickname: user.nickname,
     avatar: user.avatar || '',
+    role: user.role === 'admin' ? 'admin' : 'user',
   }
   currentUserId.value = user.id
   profileForm.avatar = user.avatar || ''
@@ -372,6 +366,7 @@ async function submitLogin() {
       account: result.user.account,
       nickname: result.user.nickname,
       avatar: result.user.avatar || '',
+      role: result.user.role === 'admin' ? 'admin' : 'user',
     })
     applyBackendUser(result.user)
 
@@ -425,6 +420,7 @@ async function submitRegister() {
       account: result.user.account,
       nickname: result.user.nickname,
       avatar: result.user.avatar || '',
+      role: result.user.role === 'admin' ? 'admin' : 'user',
     })
     applyBackendUser(result.user)
 
@@ -487,10 +483,56 @@ function uploadAvatar(dataUrl: string) {
   profileForm.avatar = dataUrl
 }
 
+async function uploadAvatarFile(file: File) {
+  if (!accessToken.value) {
+    showMessage('error', '请先登录')
+    return false
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}/api/profile/avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken.value}`,
+      },
+      body: formData,
+    })
+  } catch {
+    showMessage('error', '后端不可用或网络异常，请确认服务已启动')
+    return false
+  }
+
+  let body: unknown = null
+  try {
+    body = await response.json()
+  } catch {
+    body = null
+  }
+
+  if (!response.ok) {
+    const detail =
+      typeof body === 'object' && body !== null && 'detail' in body
+        ? String((body as Record<string, unknown>).detail)
+        : `上传失败(${response.status})`
+    showMessage('error', detail)
+    return false
+  }
+
+  applyBackendUser(body as BackendUser)
+  showMessage('success', '头像上传成功')
+  return true
+}
+
 const analysisTitle = computed(() => {
   const name = currentUser.value?.nickname || '访客'
   return `${name} 的心理画像`
 })
+
+const isAdmin = computed(() => currentUser.value?.role === 'admin')
 
 function getScoreBandFeedback(score: number) {
   const safe = Math.max(0, Math.min(100, Math.round(score)))
@@ -549,7 +591,7 @@ function runDemoCarousel(durationMs: number) {
       demoCarouselTimer = null
     }
     analysisDemoImageIndex.value = 0
-    const total = analysisDemoImages.length
+    const total = analysisDemoImages.value.length
     if (!total) {
       resolve()
       return
@@ -644,27 +686,48 @@ async function startAnalysis() {
     showMessage('error', '请先登录后再进行心理分析')
     return
   }
+  let result: AnalysisResponse
+  try {
+    // 先做后端准入校验：若缺少用户pkl，这里会直接失败并中断后续步骤。
+    result = await requestApi<AnalysisResponse>('/api/analysis/run', { method: 'POST' }, true)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '心理分析失败'
+    showMessage('error', message)
+    return
+  }
+
   analysisOpen.value = true
   analyzing.value = true
   analysisProgress.value = 0
   analysisAdvice.value = ''
   analysisScore.value = null
   analysisRiskLabel.value = ''
-  analysisDemoMode.value = currentUserId.value === 4
+  analysisDemoMode.value = false
+  analysisDemoImages.value = []
+  analysisWordcloudImageUrl.value = ''
   analysisDemoImageIndex.value = 0
   analysisDemoWordcloudVisible.value = false
   analysisDemoResultVisible.value = false
 
   try {
-    const jobs: Array<Promise<unknown>> = [
-      requestApi<AnalysisResponse>('/api/analysis/run', { method: 'POST' }, true),
-      runFakeProgress(3000),
-    ]
+    type AnalysisAssetResponse = {
+      user_id: number
+      show_images: string[]
+      wordcloud_url: string
+      has_assets: boolean
+    }
+
+    const assets = await requestApi<AnalysisAssetResponse>('/api/analysis/assets/me', { method: 'GET' }, true)
+    analysisDemoImages.value = Array.isArray(assets.show_images) ? assets.show_images : []
+    analysisWordcloudImageUrl.value = assets.wordcloud_url || ''
+    analysisDemoMode.value = !!assets.has_assets
+
+    const jobs: Array<Promise<unknown>> = [runFakeProgress(3000)]
     if (analysisDemoMode.value) {
       jobs.push(runDemoCarousel(3000))
     }
 
-    const [result] = (await Promise.all(jobs)) as [AnalysisResponse, unknown?, unknown?]
+    await Promise.all(jobs)
     analysisScore.value = result.health_score
     analysisRiskLabel.value = result.prediction.pred_name
     buildAdvice()
@@ -725,6 +788,7 @@ export function useMindIsland() {
     isAuthOpen,
     authMode,
     currentUser,
+    isAdmin,
     loginForm,
     registerForm,
     profileForm,
@@ -742,6 +806,7 @@ export function useMindIsland() {
     analysisDemoImageIndex,
     analysisDemoWordcloudVisible,
     analysisDemoResultVisible,
+    analysisWordcloudImageUrl,
     analysisTitle,
     encyclopediaItems,
     mentors,
@@ -754,6 +819,7 @@ export function useMindIsland() {
     submitLogin,
     submitRegister,
     uploadAvatar,
+    uploadAvatarFile,
     updateProfile,
     syncProfileFromCurrentUser,
     logout,
