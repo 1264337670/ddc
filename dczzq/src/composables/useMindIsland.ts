@@ -87,6 +87,18 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.
 const TOKEN_KEY = 'mind_island_token'
 const USER_KEY = 'mind_island_user'
 
+function toBackendAssetUrl(rawPath: string): string {
+  const value = (rawPath || '').trim()
+  if (!value) {
+    return ''
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return value
+  }
+  const base = API_BASE_URL.replace(/\/+$/, '')
+  return `${base}${value.startsWith('/') ? '' : '/'}${value}`
+}
+
 function readStorage(key: string): string {
   if (typeof window === 'undefined') {
     return ''
@@ -718,8 +730,10 @@ async function startAnalysis() {
     }
 
     const assets = await requestApi<AnalysisAssetResponse>('/api/analysis/assets/me', { method: 'GET' }, true)
-    analysisDemoImages.value = Array.isArray(assets.show_images) ? assets.show_images : []
-    analysisWordcloudImageUrl.value = assets.wordcloud_url || ''
+    analysisDemoImages.value = Array.isArray(assets.show_images)
+      ? assets.show_images.map((item) => toBackendAssetUrl(item))
+      : []
+    analysisWordcloudImageUrl.value = toBackendAssetUrl(assets.wordcloud_url || '')
     analysisDemoMode.value = !!assets.has_assets
 
     const jobs: Array<Promise<unknown>> = [runFakeProgress(3000)]
