@@ -48,7 +48,7 @@ Important values:
 
 - `DATABASE_URL`: your MySQL connection string
 - `JWT_SECRET_KEY`: change to a secure random string
-- `CORS_ORIGINS`: include frontend origin (Vite default is `http://localhost:5173`)
+- `CORS_ORIGINS`: include frontend origin (Vite default is `http://localhost:5173`), for server deployment also include your production frontend origin such as `http://47.95.207.40:3000`
 
 ## 4. Install and run
 
@@ -62,13 +62,13 @@ Activate venv:
 - Windows PowerShell:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
+venv\Scripts\activate
 ```
 
 - macOS/Linux:
 
 ```bash
-source .venv/bin/activate
+source venv/bin/activate
 ```
 
 Install dependencies:
@@ -82,7 +82,7 @@ Start service:
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-
+nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
 ## 5. API summary
 
 ### Auth
