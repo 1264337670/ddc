@@ -12,8 +12,8 @@ from app.db.schemas import ProfileUpdateRequest, UserPublic
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-AVATAR_DIR = PROJECT_ROOT / "avatar_uploads"
+BACKEND_ROOT = Path(__file__).resolve().parents[3]
+AVATAR_DIR = BACKEND_ROOT / "avatar_uploads"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
