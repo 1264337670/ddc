@@ -15,15 +15,16 @@ router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 BACKEND_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 CHECKPOINT_PATH = os.path.join(BACKEND_ROOT, "best_full_model.pth")
 PKL_DIR = os.path.join(BACKEND_ROOT, "pkl")
-FRONT_PUBLIC_DIR = os.path.abspath(os.path.join(BACKEND_ROOT, "..", "dczzq", "public"))
+SHOW_DIR = os.path.join(BACKEND_ROOT, "show")
+WORD_DIR = os.path.join(BACKEND_ROOT, "word")
 MAX_TEXT_LEN = 256
 
 _RUNTIME_CACHE: Dict[str, Any] = {}
 
 
 def _collect_user_analysis_assets(user_id: int) -> Dict[str, Any]:
-    show_dir = os.path.join(FRONT_PUBLIC_DIR, "show", str(user_id))
-    word_dir = os.path.join(FRONT_PUBLIC_DIR, "word", str(user_id))
+    show_dir = os.path.join(SHOW_DIR, str(user_id))
+    word_dir = os.path.join(WORD_DIR, str(user_id))
 
     images: List[str] = []
     if os.path.isdir(show_dir):

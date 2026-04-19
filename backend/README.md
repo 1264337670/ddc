@@ -82,7 +82,9 @@ Start service:
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &
+
+docker exec -it mind-island-mysql mysql -uroot -p12345 --default-character-set=utf8mb4 mind_island
 ## 5. API summary
 
 ### Auth

@@ -15,9 +15,13 @@ from app.api.routes.profile import router as profile_router
 from app.api.routes.tree_hole import router as tree_hole_router
 from app.core.config import settings
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-AVATAR_DIR = PROJECT_ROOT / "avatar_uploads"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+AVATAR_DIR = BACKEND_ROOT / "avatar_uploads"
+SHOW_DIR = BACKEND_ROOT / "show"
+WORD_DIR = BACKEND_ROOT / "word"
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
+SHOW_DIR.mkdir(parents=True, exist_ok=True)
+WORD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title=settings.app_name)
 
@@ -33,6 +37,8 @@ app.add_middleware(
 )
 
 app.mount("/avatar-files", StaticFiles(directory=str(AVATAR_DIR)), name="avatar-files")
+app.mount("/show", StaticFiles(directory=str(SHOW_DIR)), name="analysis-show")
+app.mount("/word", StaticFiles(directory=str(WORD_DIR)), name="analysis-word")
 
 
 @app.exception_handler(OperationalError)
